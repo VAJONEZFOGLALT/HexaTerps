@@ -8,7 +8,11 @@ import {
 } from './bootstrap';
 
 let server: Awaited<ReturnType<typeof createNestServer>> | undefined;
-let allowedOrigins: string | string[] = 'https://hexa-terps.vercel.app';
+let allowedOrigins: string | string[] = [
+  'https://hexa-terps.vercel.app',
+  'https://www.hexaterps.space',
+  'https://hexaterps.space',
+];
 
 function corsOriginHeader(): string {
   const list = Array.isArray(allowedOrigins)
