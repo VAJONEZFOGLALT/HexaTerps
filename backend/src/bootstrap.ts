@@ -105,6 +105,28 @@ export async function createApp(): Promise<NestExpressApplication> {
 /** Vercel serverless: single Express instance reused across invocations. */
 export async function createNestServer(): Promise<express.Express> {
   const server = express();
+
+  const frontendOrigin = process.env.FRONTEND_ORIGIN || 'https://hexa-terps.vercel.app';
+  const allowedOrigins = parseFrontendOrigins(frontendOrigin);
+
+  server.use((req, res, next) => {
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+    const allowed = Array.isArray(allowedOrigins) ? allowedOrigins : [allowedOrigins];
+    if (origin && allowed.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Token');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(server),
