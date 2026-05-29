@@ -18,7 +18,7 @@ function sumCart(items: CartItem[]): number {
 function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all' | 'limited'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +42,26 @@ function App() {
       // ignore
     }
   }, []);
+
+  const CATEGORY_ORDER = [
+    'Limited blend',
+    'Limited HHC blends',
+    'BDT HHC blends',
+    'Live Resin HHC blends',
+    'D9/D9+Other cannabinoids blends',
+    'Edibles',
+    'Concentrates',
+  ];
+
+  const orderedCategories = useMemo(() => {
+    const orderMap = new Map(CATEGORY_ORDER.map((n, i) => [n, i]));
+    return [...categories].sort((a, b) => {
+      const ia = orderMap.has(a.name) ? (orderMap.get(a.name) as number) : Number.POSITIVE_INFINITY;
+      const ib = orderMap.has(b.name) ? (orderMap.get(b.name) as number) : Number.POSITIVE_INFINITY;
+      if (ia === ib) return a.name.localeCompare(b.name);
+      return ia - ib;
+    });
+  }, [categories]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -90,6 +110,11 @@ function App() {
 
   const filteredProducts = useMemo(() => {
     if (selectedCategoryId === 'all') return products;
+    if (selectedCategoryId === 'limited') {
+      return products.filter((p) =>
+        p.category?.name === 'Limited blend' || p.category?.name === 'Limited HHC blends',
+      );
+    }
     return products.filter((p) => p.categoryId === selectedCategoryId);
   }, [products, selectedCategoryId]);
 
@@ -159,16 +184,33 @@ function App() {
             {t('all')}
           </button>
 
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              className={selectedCategoryId === c.id ? 'chip active' : 'chip'}
-              onClick={() => setSelectedCategoryId(c.id)}
-              type="button"
-            >
-              {c.name}
-            </button>
-          ))}
+          {/* Combined limited categories shown as one split chip */}
+          <button
+            className={selectedCategoryId === 'limited' ? 'chip active' : 'chip'}
+            onClick={() => setSelectedCategoryId('limited')}
+            type="button"
+          >
+            <span style={{ display: 'inline-block', width: '49%', textAlign: 'right', paddingRight: 6 }}>
+              Limited blend
+            </span>
+            <span style={{ display: 'inline-block', width: '2%', textAlign: 'center' }}>|</span>
+            <span style={{ display: 'inline-block', width: '49%', textAlign: 'left', paddingLeft: 6 }}>
+              Limited HHC blends
+            </span>
+          </button>
+
+          {orderedCategories
+            .filter((c) => c.name !== 'Limited blend' && c.name !== 'Limited HHC blends')
+            .map((c) => (
+              <button
+                key={c.id}
+                className={selectedCategoryId === c.id ? 'chip active' : 'chip'}
+                onClick={() => setSelectedCategoryId(c.id)}
+                type="button"
+              >
+                {c.name}
+              </button>
+            ))}
         </aside>
 
         <section className="content">
