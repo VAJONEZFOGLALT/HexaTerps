@@ -13,6 +13,7 @@ const INITIAL_CATEGORIES = [
 	'Equipment',
 	'Edibles',
 	'Concentrates',
+	'Uncategorized',
 ];
 
 const INITIAL_CANNABINOIDS = [

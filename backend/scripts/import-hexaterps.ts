@@ -110,11 +110,15 @@ function parseCannabinoids(text: string): Array<{ name: string; percentage: stri
 function mapCategory(title: string): string {
   const t = title.toLowerCase();
   const mapping: Array<[RegExp, string]> = [
-    [/baterky|510/i, 'Equipment'],
-    [/doplňkový sortiment|doplnkovy sortiment/i, 'Concentrates'],
-    [/edibles|gummies/i, 'Edibles'],
-    [/novinky s d9|d9/i, 'D9/D9+Other cannabinoids blends'],
+    [/baterky|510|baterk/i, 'Equipment'],
+    [/dopl.nkov.y sortiment|doplnkovy sortiment|dopl?nkov. sortiment/i, 'Concentrates'],
+    [/edibles|gummies|gummy|gumy/i, 'Edibles'],
+    [/novinky s d9|\bd9\b|\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
     [/h blendy|hhc|\bH\b/i, 'BDT HHC blends'],
+    [/live resin|live resin terpeny|live resin/i, 'Live Resin HHC blends'],
+    [/dopl.nkov. sortiment|dopl.nkov.y|doplnkovy|dopl?nkovy/i, 'Concentrates'],
+    [/koncentraty|koncentr.+|concentrates|concentraty/i, 'Concentrates'],
+    [/baterky s 510 z/vaz|baterky s 510/i, 'Equipment'],
   ];
 
   for (const [re, mapped] of mapping) {
