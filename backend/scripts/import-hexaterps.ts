@@ -107,19 +107,31 @@ function parseCannabinoids(text: string): Array<{ name: string; percentage: stri
   });
 }
 
-function mapCategory(title: string): string {
+function mapCategory(title: string, baseName?: string, infoText?: string): string {
   const t = title.toLowerCase();
+  const name = (baseName || '').toLowerCase();
+  const info = (infoText || '').toLowerCase();
   const mapping: Array<[RegExp, string]> = [
-    [/baterky|510|baterk/i, 'Equipment'],
-    [/dopl.nkov.y sortiment|doplnkovy sortiment|dopl?nkov. sortiment/i, 'Concentrates'],
-    [/edibles|gummies|gummy|gumy/i, 'Edibles'],
-    [/novinky s d9|\bd9\b|\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
-    [/h blendy|hhc|\bH\b/i, 'BDT HHC blends'],
-    [/live resin|live resin terpeny|live resin/i, 'Live Resin HHC blends'],
-    [/dopl.nkov. sortiment|dopl.nkov.y|doplnkovy|dopl?nkovy/i, 'Concentrates'],
-    [/koncentraty|koncentr.+|concentrates|concentraty/i, 'Concentrates'],
-    [/baterky s 510 z?vaz|baterky s 510/i, 'Equipment'],
+    [/limitovan.+?nab[ií]dka\s*-\s*h blendy/i, 'Limited HHC blends'],
+    [/h blendy/i, 'Limited HHC blends'],
+    [/limitovan.+?nab[ií]dka/i, 'Limited blend'],
+    [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
+    [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
+    [/gummy|gummies|gum(?:my|ys)/i, 'Edibles'],
+    [/live resin/i, 'Live Resin HHC blends'],
+    [/botanick[eé] terpeny/i, 'BDT HHC blends'],
+    [/95% h \+ 5% terpeny/i, 'BDT HHC blends'],
+    [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
+    [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
+    [/baterky|equipment|510/i, 'Equipment'],
   ];
+
+  for (const [re, mapped] of mapping) {
+    if (re.test(title) || re.test(name) || re.test(info)) return mapped;
+  }
+
+  return title.trim() || 'Uncategorized';
+}
 
   for (const [re, mapped] of mapping) {
     if (re.test(title)) return mapped;
@@ -261,7 +273,7 @@ async function main() {
   for (const p of parsed) {
     if (p.variants.length === 0) continue;
 
-    const categoryName = mapCategory(p.categoryTitle);
+    const categoryName = mapCategory(p.categoryTitle, p.baseName, p.rawText);
     const category = await upsertCategory(prisma, categoryName);
 
     for (const variant of p.variants) {

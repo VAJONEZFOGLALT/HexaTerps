@@ -6,13 +6,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const INITIAL_CATEGORIES = [
-	'Minor cannabinoids blends',
 	'BDT HHC blends',
 	'Live Resin HHC blends',
 	'D9/D9+Other cannabinoids blends',
-	'Equipment',
-	'Edibles',
 	'Concentrates',
+	'Equipment',
+	'Limited HHC blends',
+	'Limited blend',
+	'Edibles',
 	'Uncategorized',
 ];
 
