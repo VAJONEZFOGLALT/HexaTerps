@@ -118,7 +118,7 @@ function mapCategory(title: string): string {
     [/live resin|live resin terpeny|live resin/i, 'Live Resin HHC blends'],
     [/dopl.nkov. sortiment|dopl.nkov.y|doplnkovy|dopl?nkovy/i, 'Concentrates'],
     [/koncentraty|koncentr.+|concentrates|concentraty/i, 'Concentrates'],
-    [/baterky s 510 z/vaz|baterky s 510/i, 'Equipment'],
+    [/baterky s 510 z?vaz|baterky s 510/i, 'Equipment'],
   ];
 
   for (const [re, mapped] of mapping) {
