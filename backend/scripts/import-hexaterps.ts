@@ -26,6 +26,12 @@ type ParsedProduct = {
   rawText: string;
 };
 
+type ParsedCannabinoid = {
+  name: string;
+  percentage: string;
+  type: 'base' | 'terpenes' | 'minor' | 'other';
+};
+
 function getArg(name: string): string | undefined {
   const idx = process.argv.indexOf(name);
   if (idx === -1) return undefined;
@@ -62,28 +68,34 @@ function cleanCannabinoidName(token: string): string {
   const upper = token.toUpperCase().replace(/[^A-Z0-9+]/g, '');
 
   if (upper === 'H') return 'HHC';
-  if (upper === 'D9') return 'D9';
+  if (upper === 'HHC' || upper === 'HEXA') return 'HHC';
+  if (upper === 'D9') return 'Δ⁹-THC';
   if (upper.startsWith('CBD')) return 'CBD';
   if (upper.startsWith('CBG')) return 'CBG';
   if (upper.startsWith('CBC')) return 'CBC';
   if (upper.startsWith('CBN')) return 'CBN';
-  if (upper === 'THCV') return 'THCv';
-  if (upper === 'THCVA') return 'THCv';
-  if (upper === 'THA' || upper === 'TH-A' || upper === 'THA') return 'THCa';
+  if (upper === 'THCV' || upper === 'THCVA') return 'THCv';
+  if (upper === 'THA' || upper === 'TH-A') return 'THCa';
   if (upper === 'THCA') return 'THCa';
-  if (upper === 'HEXA') return 'Hexa';
   if (upper === 'H4CBD') return 'H4CBD';
   if (upper === 'HP') return 'HP';
+  if (upper.includes('HHCP')) return 'HHCP';
   if (upper === 'PPB' || upper === 'PEB' || upper === 'PPBPEB') return 'PPB';
+  if (upper === 'TERPENY' || upper === 'TERPENES') return 'Terpenes';
 
-  // fallback: keep short tokens
   if (upper.length <= 10) return upper;
   return upper.slice(0, 10);
 }
 
-function parseCannabinoids(text: string): Array<{ name: string; percentage: string }> {
-  // Example: "... + 5% CBG, 5% CBC, 2% CBD, 3% THCv"
-  const results: Array<{ name: string; percentage: string }> = [];
+function classifyCannabinoid(name: string): ParsedCannabinoid['type'] {
+  if (name === 'HHC' || name === 'Δ⁹-THC') return 'base';
+  if (name === 'Terpenes') return 'terpenes';
+  if (name === 'CBD' || name === 'CBG' || name === 'CBC' || name === 'CBN' || name === 'H4CBD') return 'minor';
+  return 'other';
+}
+
+function parseCannabinoids(text: string, categoryName: string): Array<{ name: string; percentage: string }> {
+  const results: ParsedCannabinoid[] = [];
   const regex = /(\d+(?:[.,]\d+)?)\s*%\s*([A-Za-z0-9+]+(?:\s*[A-Za-z0-9+]+)?)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
@@ -92,19 +104,39 @@ function parseCannabinoids(text: string): Array<{ name: string; percentage: stri
     const name = cleanCannabinoidName(rawToken);
     if (!name) continue;
 
-    // Skip obvious non-cannabinoid percentages like terpenes.
-    if (name === 'TERPENY' || name === 'TERPENES') continue;
-
-    results.push({ name, percentage });
+    results.push({
+      name,
+      percentage,
+      type: classifyCannabinoid(name),
+    });
   }
 
-  // Deduplicate by name (keep first)
   const seen = new Set<string>();
-  return results.filter((r) => {
+  const deduped = results.filter((r) => {
     if (seen.has(r.name)) return false;
     seen.add(r.name);
     return true;
   });
+
+  if (categoryName === 'Limited HHC blends') {
+    const hasHhc = deduped.some((r) => r.name === 'HHC');
+    const hasBase = deduped.some((r) => r.type === 'base');
+    if (!hasHhc && hasBase === false) {
+      const totalOther = deduped.reduce((sum, item) => sum + Number(item.percentage), 0);
+      const inferred = Math.max(0, 100 - totalOther);
+      if (inferred >= 1) {
+        deduped.unshift({ name: 'HHC', percentage: inferred.toFixed(0), type: 'base' });
+      }
+    }
+  }
+
+  deduped.sort((a, b) => {
+    const order = { base: 0, terpenes: 1, minor: 2, other: 3 } as const;
+    if (order[a.type] !== order[b.type]) return order[a.type] - order[b.type];
+    return a.name.localeCompare(b.name);
+  });
+
+  return deduped.map((c) => ({ name: c.name, percentage: c.percentage }));
 }
 
 function mapCategory(title: string, baseName?: string, infoText?: string): string {
@@ -122,6 +154,7 @@ function mapCategory(title: string, baseName?: string, infoText?: string): strin
     [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
     [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
     [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
+    [/baterky|equipment|510/i, 'Concentrates'],
     [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
   ];
 
@@ -174,7 +207,7 @@ function parseHtml(html: string): ParsedProduct[] {
     const strain = normalizeStrain(`${baseName} ${infoText}`);
     const featured = categoryTitle.toLowerCase().includes('limitovan');
 
-    const cannabinoids = parseCannabinoids(infoText);
+    const cannabinoids = parseCannabinoids(infoText, mapCategory(categoryTitle, baseName, infoText));
 
     const effectiveVariants =
       variants.length > 0

@@ -18,7 +18,9 @@ function mapCategory(title: string): string {
     [/botanick[eé] terpeny/i, 'BDT HHC blends'],
     [/95% h \+ 5% terpeny/i, 'BDT HHC blends'],
     [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
+    [/minor cannabinoids blends/i, 'BDT HHC blends'],
     [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
+    [/baterky|equipment|510/i, 'Concentrates'],
   ];
 
   for (const [re, mapped] of mapping) {
@@ -44,7 +46,17 @@ async function main() {
   const categories = await prisma.category.findMany({ include: { products: true } });
   console.log(`Found ${categories.length} categories`);
 
+  const removableCategories = new Set(['Equipment', 'Uncategorized', 'Minor cannabinoids blends']);
+
   for (const cat of categories) {
+    if (removableCategories.has(cat.name) && cat.products.length === 0) {
+      console.log(`Deleting empty category '${cat.name}'`);
+      if (!dryRun) {
+        await prisma.category.delete({ where: { id: cat.id } });
+      }
+      continue;
+    }
+
     const mapped = mapCategory(cat.name);
     if (mapped === cat.name) continue;
 
@@ -65,7 +77,6 @@ async function main() {
 
     console.log(`  Moved ${res.count} products to category id ${target.id} ('${target.name}')`);
 
-    // If original category now has no products, delete it
     const remaining = await prisma.product.count({ where: { categoryId: cat.id } });
     if (remaining === 0) {
       try {

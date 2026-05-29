@@ -18,7 +18,7 @@ function sumCart(items: CartItem[]): number {
 function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all' | 'limited'>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,11 +110,6 @@ function App() {
 
   const filteredProducts = useMemo(() => {
     if (selectedCategoryId === 'all') return products;
-    if (selectedCategoryId === 'limited') {
-      return products.filter((p) =>
-        p.category?.name === 'Limited blend' || p.category?.name === 'Limited HHC blends',
-      );
-    }
     return products.filter((p) => p.categoryId === selectedCategoryId);
   }, [products, selectedCategoryId]);
 
@@ -184,20 +179,21 @@ function App() {
             {t('all')}
           </button>
 
-          {/* Combined limited categories shown as one split chip */}
-          <button
-            className={selectedCategoryId === 'limited' ? 'chip active' : 'chip'}
-            onClick={() => setSelectedCategoryId('limited')}
-            type="button"
-          >
-            <span style={{ display: 'inline-block', width: '49%', textAlign: 'right', paddingRight: 6 }}>
-              Limited blend
-            </span>
-            <span style={{ display: 'inline-block', width: '2%', textAlign: 'center' }}>|</span>
-            <span style={{ display: 'inline-block', width: '49%', textAlign: 'left', paddingLeft: 6 }}>
-              Limited HHC blends
-            </span>
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            {orderedCategories
+              .filter((c) => c.name === 'Limited blend' || c.name === 'Limited HHC blends')
+              .map((c) => (
+                <button
+                  key={c.id}
+                  className={selectedCategoryId === c.id ? 'chip active' : 'chip'}
+                  onClick={() => setSelectedCategoryId(c.id)}
+                  type="button"
+                  style={{ flex: '1 1 calc(50% - 4px)', minWidth: 150 }}
+                >
+                  {c.name}
+                </button>
+              ))}
+          </div>
 
           {orderedCategories
             .filter((c) => c.name !== 'Limited blend' && c.name !== 'Limited HHC blends')
