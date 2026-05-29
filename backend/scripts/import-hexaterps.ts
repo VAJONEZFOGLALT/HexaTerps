@@ -276,14 +276,15 @@ async function main() {
       const price = variant.priceCzk > 0 ? new Prisma.Decimal(variant.priceCzk) : new Prisma.Decimal(0);
       const stock = parseStockHint(`${p.rawText} ${variant.variantName}`, p.available);
 
-      const existing = await prisma.product.findFirst({
+      const existingProducts = await prisma.product.findMany({
         where: { name },
-        select: { id: true, name: true },
+        select: { id: true },
+        orderBy: { id: 'asc' },
       });
 
-      const product = existing
+      const product = existingProducts.length > 0
         ? await prisma.product.update({
-            where: { id: existing.id },
+            where: { id: existingProducts[0].id },
             data: {
               categoryId: category.id,
               description: p.description || null,
@@ -309,6 +310,12 @@ async function main() {
             },
           });
 
+      if (existingProducts.length > 1) {
+        const duplicateIds = existingProducts.slice(1).map((p) => p.id);
+        const deleted = await prisma.product.deleteMany({ where: { id: { in: duplicateIds } } });
+        console.log(`Removed ${deleted.count} duplicate products with name: ${name}`);
+      }
+
       await prisma.productCannabinoid.deleteMany({ where: { productId: product.id } });
       if (p.cannabinoids.length > 0) {
         const cannabinoidIds: Array<{ cannabinoidId: number; percentage: Prisma.Decimal }> = [];
@@ -329,7 +336,7 @@ async function main() {
         });
       }
 
-      console.log(`${existing ? 'Updated' : 'Created'} product: ${product.id} ${product.name}`);
+      console.log(`${existingProducts.length > 0 ? 'Updated' : 'Created'} product: ${product.id} ${product.name}`);
     }
   }
   } finally {
