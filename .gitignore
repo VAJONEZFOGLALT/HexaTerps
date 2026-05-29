@@ -1,0 +1,26 @@
+# Dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+build/
+coverage/
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Temp / tooling
+.temp/
+.tmp/
+.vscode/*
+!.vscode/extensions.json
+
+# Local import sources (keep under backend/data locally)
+HexaTerps.pdf
+HexaTerps.txt
