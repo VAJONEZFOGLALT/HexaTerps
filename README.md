@@ -59,3 +59,10 @@ API base URL defaults to same host; set `VITE_API_BASE_URL` if needed.
 | POST | `/api/orders` | Create order |
 
 Admin mutations live under `/api/admin/*` and require `Authorization: Bearer <ADMIN_TOKEN>` or `X-Admin-Token`.
+
+## Deploy on Vercel
+
+- Frontend: https://hexa-terps.vercel.app (`frontend/`)
+- Backend: https://hexa-terps-backend.vercel.app (`backend/`)
+
+Step-by-step: see [VERCEL.md](./VERCEL.md).

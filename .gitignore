@@ -9,6 +9,8 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.production
+!.env.vercel.example
 
 # Logs & OS
 *.log

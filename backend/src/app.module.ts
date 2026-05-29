@@ -20,14 +20,25 @@ import Joi from 'joi';
         NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
         PORT: Joi.number().port().default(3000),
         DATABASE_URL: Joi.string()
-          .uri()
           .when('NODE_ENV', {
             is: 'test',
             then: Joi.optional().default('mysql://user:pass@localhost:3306/test'),
             otherwise: Joi.required(),
           }),
         FRONTEND_ORIGIN: Joi.string()
-          .uri()
+          .custom((value: string, helpers) => {
+            const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
+            if (parts.length === 0) {
+              return helpers.error('any.invalid');
+            }
+            for (const part of parts) {
+              const { error } = Joi.string().uri().validate(part);
+              if (error) {
+                return helpers.error('any.invalid');
+              }
+            }
+            return value;
+          })
           .when('NODE_ENV', {
             is: 'test',
             then: Joi.optional().default('http://localhost:5173'),
@@ -46,6 +57,10 @@ import Joi from 'joi';
       {
         ttl: 60_000,
         limit: 120,
+        skipIf: (context) => {
+          const req = context.switchToHttp().getRequest<{ method?: string }>();
+          return req.method === 'OPTIONS';
+        },
       },
     ]),
     PrismaModule,
