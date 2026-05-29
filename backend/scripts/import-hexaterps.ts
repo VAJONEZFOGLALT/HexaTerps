@@ -123,7 +123,6 @@ function mapCategory(title: string, baseName?: string, infoText?: string): strin
     [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
     [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
     [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
-    [/baterky|equipment|510/i, 'Equipment'],
   ];
 
   for (const [re, mapped] of mapping) {

@@ -19,7 +19,6 @@ function mapCategory(title: string): string {
     [/95% h \+ 5% terpeny/i, 'BDT HHC blends'],
     [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
     [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
-    [/baterky|equipment|510/i, 'Equipment'],
   ];
 
   for (const [re, mapped] of mapping) {

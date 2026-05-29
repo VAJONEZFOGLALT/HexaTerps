@@ -7,10 +7,27 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.category.findMany({
-      orderBy: { name: 'asc' },
+  private readonly ORDER = [
+    'Limited blend',
+    'Limited HHC blends',
+    'BDT HHC blends',
+    'Live Resin HHC blends',
+    'D9/D9+Other cannabinoids blends',
+    'Edibles',
+    'Concentrates',
+  ];
+
+  async findAll() {
+    const cats = await this.prisma.category.findMany();
+    cats.sort((a, b) => {
+      const ia = this.ORDER.indexOf(a.name);
+      const ib = this.ORDER.indexOf(b.name);
+      if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
     });
+    return cats;
   }
 
   async findOne(id: number) {
