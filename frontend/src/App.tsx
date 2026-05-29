@@ -3,11 +3,13 @@ import './App.css';
 import type { Category, CreateOrderPayload, DeliveryMethod, Product } from './types';
 import { api } from './api';
 import { formatCzk } from './money';
+import { t } from './i18n';
 
 type CartItem = {
   product: Product;
   quantity: number;
 };
+
 
 function sumCart(items: CartItem[]): number {
   return items.reduce((acc, item) => acc + Number(item.product.price) * item.quantity, 0);
@@ -138,23 +140,25 @@ function App() {
       <header className="header">
         <div>
           <div className="brand">HexaTerps</div>
-          <div className="tagline">MVP webshop • objednávka bez registrace</div>
+          <div className="tagline">{t('appTagline')}</div>
         </div>
         <div className="headerRight">
-          <div className="cartBadge">Košík: {formatCzk(cartTotal)}</div>
+          <div className="cartBadge">{t('cartBadge', { total: formatCzk(cartTotal) })}</div>
         </div>
       </header>
 
+
       <main className="layout">
         <aside className="sidebar">
-          <div className="panelTitle">Kategorie</div>
+          <div className="panelTitle">{t('categories')}</div>
           <button
             className={selectedCategoryId === 'all' ? 'chip active' : 'chip'}
             onClick={() => setSelectedCategoryId('all')}
             type="button"
           >
-            Vše
+            {t('all')}
           </button>
+
           {categories.map((c) => (
             <button
               key={c.id}
@@ -168,12 +172,13 @@ function App() {
         </aside>
 
         <section className="content">
-          <div className="panelTitle">Produkty</div>
-          {loading ? <div className="muted">Načítání…</div> : null}
+          <div className="panelTitle">{t('products')}</div>
+          {loading ? <div className="muted">{t('loading')}</div> : null}
           {error ? <div className="error">{error}</div> : null}
           {!loading && filteredProducts.length === 0 ? (
-            <div className="muted">Žádné produkty.</div>
+            <div className="muted">{t('noProducts')}</div>
           ) : null}
+
 
           <div className="grid">
             {filteredProducts.map((p) => {
@@ -190,18 +195,20 @@ function App() {
                     <div className="badges">
                       <span className="badge">{p.category?.name}</span>
                       <span className="badge">{p.strain.toLowerCase()}</span>
-                      {p.featured ? <span className="badge strong">featured</span> : null}
+                      {p.featured ? <span className="badge strong">{t('featured')}</span> : null}
                     </div>
                   </div>
 
                   {p.description ? <div className="desc">{p.description}</div> : null}
-                  {p.flavour ? <div className="muted">Příchuť: {p.flavour}</div> : null}
-                  {cannabinoidsText ? <div className="muted">Složení: {cannabinoidsText}</div> : null}
+                  {p.flavour ? <div className="muted">{t('flavourPrefix')} {p.flavour}</div> : null}
+                  {cannabinoidsText ? <div className="muted">{t('compositionPrefix')} {cannabinoidsText}</div> : null}
+
 
                   <div className="cardBottom">
                     <div className="price">{formatCzk(p.price)}</div>
-                    <div className="stock">Sklad: {p.stock}</div>
+                    <div className="stock">{t('inStockPrefix')} {p.stock}</div>
                     <div className="qty">
+
                       <button
                         type="button"
                         className="btn"
@@ -228,8 +235,9 @@ function App() {
         </section>
 
         <aside className="sidebar">
-          <div className="panelTitle">Objednávka</div>
-          {cart.length === 0 ? <div className="muted">Košík je prázdný.</div> : null}
+          <div className="panelTitle">{t('order')}</div>
+          {cart.length === 0 ? <div className="muted">{t('emptyCart')}</div> : null}
+
 
           {cart.length > 0 ? (
             <div className="cartList">
@@ -249,24 +257,25 @@ function App() {
 
           <div className="form">
             <label className="field">
-              <span>Jméno / přezdívka</span>
+              <span>{t('fullName')}</span>
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </label>
             <label className="field">
-              <span>Kontakt (chat / tel.)</span>
+              <span>{t('contact')}</span>
               <input value={contact} onChange={(e) => setContact(e.target.value)} />
             </label>
             <label className="field">
-              <span>Doručení</span>
+              <span>{t('delivery')}</span>
               <select value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethod)}>
-                <option value="PICKUP">Dopravu si udělám sám</option>
-                <option value="COURIER">PPL / kurýr</option>
+                <option value="PICKUP">{t('deliveryPickup')}</option>
+                <option value="COURIER">{t('deliveryCourier')}</option>
               </select>
             </label>
             <label className="field">
-              <span>Poznámka</span>
+              <span>{t('note')}</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
             </label>
+
 
             <button
               type="button"
@@ -274,17 +283,16 @@ function App() {
               onClick={() => void placeOrder()}
               disabled={placingOrder || cart.length === 0 || !fullName.trim() || !contact.trim()}
             >
-              {placingOrder ? 'Odesílám…' : 'Odeslat objednávku'}
+              {placingOrder ? t('submitting') : t('submitOrder')}
             </button>
 
             {orderResult ? (
-              <div className="success">Objednávka odeslána. Číslo: {orderResult.id}</div>
+              <div className="success">{t('orderSent', { id: orderResult.id })}</div>
             ) : null}
           </div>
 
-          <div className="hint">
-            Admin API je chráněné tokenem (bez registrace). Pro správu produktů použij `Authorization: Bearer ADMIN_TOKEN`.
-          </div>
+          <div className="hint">{t('adminHint')}</div>
+
         </aside>
       </main>
 
@@ -292,5 +300,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;
