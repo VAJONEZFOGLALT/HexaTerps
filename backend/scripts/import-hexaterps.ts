@@ -133,14 +133,6 @@ function mapCategory(title: string, baseName?: string, infoText?: string): strin
   return title.trim() || 'Uncategorized';
 }
 
-  for (const [re, mapped] of mapping) {
-    if (re.test(title)) return mapped;
-  }
-
-  // If no mapping, keep the original title as its own category (still CRUD-manageable)
-  return title.trim();
-}
-
 function parseHtml(html: string): ParsedProduct[] {
   const $ = cheerio.load(html);
 
