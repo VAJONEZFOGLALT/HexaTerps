@@ -115,13 +115,13 @@ function mapCategory(title: string, baseName?: string, infoText?: string): strin
     [/limitovan.+?nab[ií]dka\s*-\s*h blendy/i, 'Limited HHC blends'],
     [/h blendy/i, 'Limited HHC blends'],
     [/limitovan.+?nab[ií]dka/i, 'Limited blend'],
-    [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
-    [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
     [/gummy|gummies|gum(?:my|ys)/i, 'Edibles'],
     [/live resin/i, 'Live Resin HHC blends'],
     [/botanick[eé] terpeny/i, 'BDT HHC blends'],
     [/95% h \+ 5% terpeny/i, 'BDT HHC blends'],
     [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
+    [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
+    [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
     [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
     [/baterky|equipment|510/i, 'Equipment'],
   ];
@@ -277,7 +277,7 @@ async function main() {
       const stock = parseStockHint(`${p.rawText} ${variant.variantName}`, p.available);
 
       const existing = await prisma.product.findFirst({
-        where: { name, categoryId: category.id },
+        where: { name },
         select: { id: true, name: true },
       });
 
@@ -285,6 +285,7 @@ async function main() {
         ? await prisma.product.update({
             where: { id: existing.id },
             data: {
+              categoryId: category.id,
               description: p.description || null,
               strain: p.strain,
               flavour: null,
