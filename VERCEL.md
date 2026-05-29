@@ -11,7 +11,7 @@ Two separate Vercel projects from the same GitHub repo.
 
 1. [vercel.com/new](https://vercel.com/new) → Import **HexaTerps** repo.
 2. **Root Directory:** `backend`
-3. Framework: **Other** (uses `backend/vercel.json`).
+3. Framework: **NestJS** (or Other — `backend/vercel.json` only runs `prisma generate`).
 4. **Environment variables** (copy from `backend/.env.vercel.example`):
 
    | Variable | Value |

@@ -65,7 +65,8 @@ export function applyPreflightCors(
   req: { method?: string; headers?: { origin?: string } },
   res: {
     setHeader(name: string, value: string): void;
-    status(code: number): { end(): void };
+    statusCode: number;
+    end(): void;
   },
   allowedOrigins: string | string[],
 ): boolean {
@@ -89,7 +90,8 @@ export function applyPreflightCors(
     );
     res.setHeader('Access-Control-Max-Age', '86400');
   }
-  res.status(204).end();
+  res.statusCode = 204;
+  res.end();
   return true;
 }
 
