@@ -1,25 +1,50 @@
 import { useEffect, useState } from 'react';
 import './Admin.css';
-import type { Category, Cannabinoid, Product, Strain } from './types';
+import type { Category, Cannabinoid, CannabinoidUnit, Product, ProductCannabinoid, Strain } from './types';
 import { api, buildApiUrl } from './api';
 
 type CannabinoidEntry = {
   cannabinoidId: number | string;
   percentage: string;
+  unit: CannabinoidUnit;
 };
 
-const defaultForm = {
+type CategoryMode = 'dropdown' | 'custom';
+
+type ProductForm = {
+  name: string;
+  categoryId: string;
+  categoryCustom: string;
+  categoryMode: CategoryMode;
+  strain: Strain;
+  description: string;
+  flavour: string;
+  price: string;
+  stock: string;
+  image: string;
+  featured: boolean;
+  cannabinoids: CannabinoidEntry[];
+};
+
+const defaultForm: ProductForm = {
   name: '',
   categoryId: '',
-  strain: 'HYBRID' as Strain,
+  categoryCustom: '',
+  categoryMode: 'dropdown',
+  strain: 'HYBRID',
   description: '',
   flavour: '',
   price: '',
   stock: '99',
   image: '',
   featured: false,
-  cannabinoids: [] as CannabinoidEntry[],
+  cannabinoids: [],
 };
+
+function formatCannabinoidEntry(entry: ProductCannabinoid): string {
+  const suffix = entry.unit === 'MG' ? ' mg' : '%';
+  return `${entry.cannabinoid.name} ${entry.percentage}${suffix}`;
+}
 
 function AdminPanel() {
   const [adminToken, setAdminToken] = useState('');
@@ -30,8 +55,7 @@ function AdminPanel() {
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  const [form, setForm] = useState(defaultForm);
+  const [form, setForm] = useState<ProductForm>(defaultForm);
 
   useEffect(() => {
     const saved = localStorage.getItem('hexaterps_admin_token');
@@ -41,24 +65,23 @@ function AdminPanel() {
     }
   }, []);
 
+  async function loadData() {
+    const [cats, cans, prods] = await Promise.all([
+      api.getCategories(),
+      api.getCannabinoids(),
+      api.getProducts(),
+    ]);
+    setCategories(cats);
+    setCannabinoids(cans);
+    setProducts(prods);
+  }
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    
-    async function load() {
-      try {
-        const [cats, cans, prods] = await Promise.all([
-          api.getCategories(),
-          api.getCannabinoids(),
-          api.getProducts(),
-        ]);
-        setCategories(cats);
-        setCannabinoids(cans);
-        setProducts(prods);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load data');
-      }
-    }
-    void load();
+
+    void loadData().catch((e) => {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    });
   }, [isAuthenticated]);
 
   function handleLogin() {
@@ -78,13 +101,6 @@ function AdminPanel() {
     setForm(defaultForm);
   }
 
-  function getDefaultPercentageForCannabinoid(name?: string) {
-    if (!name) return '';
-    if (name === 'Terpenes') return '5';
-    if (name === 'HHC' || name === 'Δ⁹-THC' || name.toUpperCase().includes('D9')) return '95';
-    return '';
-  }
-
   function resetForm() {
     setEditingProductId(null);
     setError(null);
@@ -92,10 +108,29 @@ function AdminPanel() {
     setForm(defaultForm);
   }
 
+  function getDefaultPercentageForCannabinoid(name?: string) {
+    if (!name) return '';
+    if (name === 'Terpenes') return '5';
+    if (name === 'HHC' || name === 'Δ⁹-THC' || name.toUpperCase().includes('D9')) return '95';
+    return '';
+  }
+
+  function getDefaultUnitForCannabinoid(): CannabinoidUnit {
+    return 'PERCENT';
+  }
+
+  function createCannabinoidEntry(
+    cannabinoidId: number | string = '',
+    percentage = '',
+    unit: CannabinoidUnit = 'PERCENT',
+  ): CannabinoidEntry {
+    return { cannabinoidId, percentage, unit };
+  }
+
   function handleAddCannabinoid() {
     setForm((prev) => ({
       ...prev,
-      cannabinoids: [...prev.cannabinoids, { cannabinoidId: '', percentage: '' }],
+      cannabinoids: [...prev.cannabinoids, createCannabinoidEntry()],
     }));
   }
 
@@ -108,22 +143,25 @@ function AdminPanel() {
 
   function handleCannabinoidChange(
     idx: number,
-    field: 'cannabinoidId' | 'percentage',
+    field: 'cannabinoidId' | 'percentage' | 'unit',
     value: string,
   ) {
     setForm((prev) => {
-      const newCanns = [...prev.cannabinoids];
-      const updatedEntry = { ...newCanns[idx], [field]: value };
+      const next = [...prev.cannabinoids];
+      const current = next[idx] ?? createCannabinoidEntry();
+      const updated: CannabinoidEntry = { ...current, [field]: value } as CannabinoidEntry;
+
       if (field === 'cannabinoidId') {
         const selectedId = Number(value);
         const selected = cannabinoids.find((c) => c.id === selectedId);
-        const defaultPct = getDefaultPercentageForCannabinoid(selected?.name);
-        if (defaultPct) {
-          updatedEntry.percentage = updatedEntry.percentage || defaultPct;
+        updated.unit = getDefaultUnitForCannabinoid(selected?.name);
+        if (!updated.percentage) {
+          updated.percentage = getDefaultPercentageForCannabinoid(selected?.name);
         }
       }
-      newCanns[idx] = updatedEntry;
-      return { ...prev, cannabinoids: newCanns };
+
+      next[idx] = updated;
+      return { ...prev, cannabinoids: next };
     });
   }
 
@@ -133,29 +171,44 @@ function AdminPanel() {
     setSuccess(null);
 
     try {
-      if (!form.name || !form.categoryId || !form.price) {
-        setError('Please fill in all required fields');
+      const categoryCustom = form.categoryMode === 'custom' ? form.categoryCustom.trim() : '';
+      const categoryId = form.categoryMode === 'dropdown' ? Number(form.categoryId) : undefined;
+
+      if (!form.price.trim()) {
+        setError('Please fill in the price');
+        return;
+      }
+
+      if (form.categoryMode === 'dropdown' && !categoryId) {
+        setError('Please select a category');
+        return;
+      }
+
+      if (form.categoryMode === 'custom' && !categoryCustom) {
+        setError('Please enter a custom category name');
         return;
       }
 
       const payload = {
-        name: form.name,
-        categoryId: Number(form.categoryId),
-        description: form.description || undefined,
+        name: form.name.trim() || undefined,
+        categoryId,
+        categoryCustom: categoryCustom || undefined,
+        description: form.description.trim() || undefined,
         strain: form.strain,
-        flavour: form.flavour || undefined,
+        flavour: form.flavour.trim() || undefined,
         price: form.price,
-        stock: Number(form.stock),
-        image: form.image || undefined,
+        stock: Number(form.stock) || 0,
+        image: form.image.trim() || undefined,
         featured: form.featured,
         cannabinoids: form.cannabinoids
-          .filter((c) => c.cannabinoidId && c.percentage)
+          .filter((c) => c.cannabinoidId && c.percentage.trim())
           .map((c) => ({
             cannabinoidId:
               typeof c.cannabinoidId === 'string' && !Number.isNaN(Number(c.cannabinoidId))
                 ? Number(c.cannabinoidId)
                 : c.cannabinoidId,
-            percentage: c.percentage,
+            percentage: c.percentage.trim(),
+            unit: c.unit,
           }))
           .filter((c) => c.cannabinoidId),
       };
@@ -177,6 +230,7 @@ function AdminPanel() {
       const responseText = await response.text();
       let productResult: Product | null = null;
       let errorResult: { message?: string } | null = null;
+
       if (responseText) {
         try {
           productResult = JSON.parse(responseText) as Product;
@@ -184,6 +238,7 @@ function AdminPanel() {
           errorResult = { message: responseText };
         }
       }
+
       if (!response.ok) {
         throw new Error(errorResult?.message || responseText || 'Failed to save product');
       }
@@ -192,43 +247,13 @@ function AdminPanel() {
         throw new Error('Unexpected empty response from server');
       }
 
-      const savedProduct = productResult;
-
       const action = editingProductId ? 'updated' : 'created';
-      setSuccess(`✅ Product "${savedProduct.name}" ${action}!`);
+      setSuccess(`✅ Product "${productResult.name}" ${action}!`);
       resetForm();
-      setProducts((prev) => {
-        if (editingProductId) {
-          return prev.map((product) => (product.id === savedProduct.id ? savedProduct : product));
-        }
-        return [savedProduct, ...prev];
-      });
+      await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     }
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="admin-login">
-        <div className="admin-card">
-          <h1>🔐 Admin Access</h1>
-          <div>
-            <label>Admin Token:</label>
-            <input
-              type="password"
-              value={adminToken}
-              onChange={(e) => setAdminToken(e.target.value)}
-              placeholder="Enter your admin token"
-            />
-          </div>
-          {error && <div className="admin-error">{error}</div>}
-          <button onClick={handleLogin} className="btn-primary">
-            Login
-          </button>
-        </div>
-      </div>
-    );
   }
 
   function handleEditProduct(product: Product) {
@@ -238,6 +263,8 @@ function AdminPanel() {
     setForm({
       name: product.name,
       categoryId: String(product.categoryId),
+      categoryCustom: '',
+      categoryMode: 'dropdown',
       strain: product.strain,
       description: product.description ?? '',
       flavour: product.flavour ?? '',
@@ -245,10 +272,7 @@ function AdminPanel() {
       stock: String(product.stock),
       image: product.image ?? '',
       featured: product.featured,
-      cannabinoids: product.cannabinoids.map((c) => ({
-        cannabinoidId: c.cannabinoidId,
-        percentage: c.percentage,
-      })),
+      cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
     });
   }
 
@@ -259,6 +283,8 @@ function AdminPanel() {
     setForm({
       name: `${product.name} (copy)`,
       categoryId: String(product.categoryId),
+      categoryCustom: '',
+      categoryMode: 'dropdown',
       strain: product.strain,
       description: product.description ?? '',
       flavour: product.flavour ?? '',
@@ -266,94 +292,206 @@ function AdminPanel() {
       stock: String(product.stock),
       image: product.image ?? '',
       featured: product.featured,
-      cannabinoids: product.cannabinoids.map((c) => ({
-        cannabinoidId: c.cannabinoidId,
-        percentage: c.percentage,
-      })),
+      cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
     });
+  }
+
+  function handleAddHardware(product: Product) {
+    const hardwareCategory = categories.find((category) => category.name === 'Hardware');
+    setEditingProductId(null);
+    setError(null);
+    setSuccess(null);
+    setForm({
+      name: product.name ? `${product.name} Hardware` : 'Hardware',
+      categoryId: hardwareCategory ? String(hardwareCategory.id) : '',
+      categoryCustom: hardwareCategory ? '' : 'Hardware',
+      categoryMode: hardwareCategory ? 'dropdown' : 'custom',
+      strain: product.strain,
+      description: product.description ?? '',
+      flavour: product.flavour ?? '',
+      price: product.price,
+      stock: String(product.stock),
+      image: product.image ?? '',
+      featured: product.featured,
+      cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
+    });
+  }
+
+  async function handleDeleteProduct(product: Product) {
+    const confirmed = window.confirm(`Delete product "${product.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      setError(null);
+      setSuccess(null);
+      const response = await api.deleteProduct(product.id, adminToken);
+      if (!response.ok) {
+        throw new Error('Failed to delete product');
+      }
+      setSuccess(`🗑️ Product "${product.name}" deleted.`);
+      if (editingProductId === product.id) {
+        resetForm();
+      }
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete product');
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="admin-login">
+        <div className="admin-card glass">
+          <h1>Admin Access</h1>
+          <p className="muted admin-subtitle">Sign in with your admin token.</p>
+          <div className="form-group">
+            <label>Admin Token</label>
+            <input
+              type="password"
+              value={adminToken}
+              onChange={(e) => setAdminToken(e.target.value)}
+              placeholder="Enter your admin token"
+            />
+          </div>
+          {error && <div className="admin-error">{error}</div>}
+          <button onClick={handleLogin} className="btn-primary" type="button">
+            Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="admin-page">
-      <header className="admin-header">
-        <h1>🛡️ HexaTerps Admin</h1>
-        <button onClick={handleLogout} className="btn-logout">
+      <header className="admin-header glass">
+        <div>
+          <h1>HexaTerps Admin</h1>
+          <p className="muted">Manual products, categories, and cannabinoid composition.</p>
+        </div>
+        <button onClick={handleLogout} className="btn-logout" type="button">
           Logout
         </button>
       </header>
 
       <main className="admin-main">
-        <section className="admin-products-section">
-          <div className="products-header">
-            <h2>📦 Products</h2>
+        <section className="admin-products-section glass">
+          <div className="section-head">
+            <h2>Products</h2>
+            <span className="section-meta">{products.length} total</span>
           </div>
+
           {products.length === 0 ? (
             <p className="muted">No products available yet.</p>
           ) : (
             <div className="product-grid">
-              {products.map((product) => (
-                <div key={product.id} className="product-card">
-                  <div className="product-card-top">
-                    <strong>{product.name}</strong>
-                    <span>{product.category?.name}</span>
-                  </div>
-                  <div className="product-card-meta">
-                    <span>Price: {product.price} CZK</span>
-                    <span>Stock: {product.stock}</span>
-                  </div>
-                  <div className="product-card-actions">
-                    <button
-                      type="button"
-                      className="btn-small"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-small"
-                      onClick={() => handleCloneProduct(product)}
-                    >
-                      Clone
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {products.map((product) => {
+                const cannabinoidText = product.cannabinoids.map(formatCannabinoidEntry).join(' • ');
+
+                return (
+                  <article key={product.id} className="product-card">
+                    <div className="product-card-top">
+                      <div>
+                        <strong>{product.name}</strong>
+                        <div className="muted tiny">{product.category?.name}</div>
+                      </div>
+                      {product.featured ? <span className="badge strong">Featured</span> : null}
+                    </div>
+
+                    <div className="product-card-body">
+                      {cannabinoidText ? (
+                        <div className="muted"><strong>Composition:</strong> {cannabinoidText}</div>
+                      ) : (
+                        <div className="muted"><strong>Composition:</strong> none</div>
+                      )}
+                      {product.flavour ? (
+                        <div className="muted"><strong>Flavour:</strong> {product.flavour}</div>
+                      ) : null}
+                      <div className="product-card-defaults">
+                        <span>Strain: {product.strain}</span>
+                        <span>Price: {product.price} CZK</span>
+                        <span>Stock: {product.stock}</span>
+                      </div>
+                    </div>
+
+                    <div className="product-card-actions">
+                      <button type="button" className="btn-small" onClick={() => handleEditProduct(product)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-small" onClick={() => handleCloneProduct(product)}>
+                        Clone
+                      </button>
+                      <button type="button" className="btn-small" onClick={() => handleAddHardware(product)}>
+                        Add Hardware
+                      </button>
+                      <button type="button" className="btn-danger" onClick={() => void handleDeleteProduct(product)}>
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
 
-        <section className="admin-form-section">
-          <h2>{editingProductId ? '✏️ Edit Product' : '➕ Add New Product'}</h2>
+        <section className="admin-form-section glass">
+          <div className="section-head">
+            <h2>{editingProductId ? 'Edit Product' : 'Add Product'}</h2>
+            <span className="section-meta">Stock defaults to 99</span>
+          </div>
           {error && <div className="admin-error">{error}</div>}
           {success && <div className="admin-success">{success}</div>}
 
           <form onSubmit={handleSubmit} className="admin-form">
             <div className="form-group">
-              <label>Product Name *</label>
+              <label>Product Name</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g., Purple Punch D9"
-                required
+                placeholder="Optional - leave blank to auto-generate"
               />
             </div>
 
             <div className="form-group">
-              <label>Category *</label>
-              <select
-                value={form.categoryId}
-                onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
-                required
-              >
-                <option value="">-- Select Category --</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <label>Category</label>
+              <div className="field-mode-toggle">
+                <button
+                  type="button"
+                  className={`mode-btn ${form.categoryMode === 'dropdown' ? 'active' : ''}`}
+                  onClick={() => setForm((p) => ({ ...p, categoryMode: 'dropdown' }))}
+                >
+                  Dropdown
+                </button>
+                <button
+                  type="button"
+                  className={`mode-btn ${form.categoryMode === 'custom' ? 'active' : ''}`}
+                  onClick={() => setForm((p) => ({ ...p, categoryMode: 'custom' }))}
+                >
+                  Custom
+                </button>
+              </div>
+              {form.categoryMode === 'dropdown' ? (
+                <select
+                  value={form.categoryId}
+                  onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={form.categoryCustom}
+                  onChange={(e) => setForm((p) => ({ ...p, categoryCustom: e.target.value }))}
+                  placeholder="Enter category name, e.g. Hardware"
+                />
+              )}
             </div>
 
             <div className="form-row">
@@ -370,7 +508,7 @@ function AdminPanel() {
               </div>
 
               <div className="form-group">
-                <label>Price (CZK) *</label>
+                <label>Price (CZK)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -398,6 +536,7 @@ function AdminPanel() {
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                 placeholder="Optional description"
+                rows={3}
               />
             </div>
 
@@ -450,7 +589,6 @@ function AdminPanel() {
                         onChange={(e) =>
                           handleCannabinoidChange(idx, 'cannabinoidId', e.target.value)
                         }
-                        required
                       >
                         <option value="">-- Select --</option>
                         {cannabinoids.map((c) => (
@@ -459,24 +597,29 @@ function AdminPanel() {
                           </option>
                         ))}
                       </select>
+
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
+                        type="text"
                         value={cann.percentage}
-                        onChange={(e) =>
-                          handleCannabinoidChange(idx, 'percentage', e.target.value)
-                        }
-                        placeholder="10.5"
+                        onChange={(e) => handleCannabinoidChange(idx, 'percentage', e.target.value)}
+                        placeholder="55-65"
                         className="percentage-input"
-                        required
                       />
-                      <span>%</span>
+
+                      <select
+                        value={cann.unit}
+                        onChange={(e) => handleCannabinoidChange(idx, 'unit', e.target.value)}
+                        className="unit-input"
+                      >
+                        <option value="PERCENT">%</option>
+                        <option value="MG">mg</option>
+                      </select>
+
                       <button
                         type="button"
                         onClick={() => handleRemoveCannabinoid(idx)}
                         className="btn-remove"
+                        title="Remove cannabinoid"
                       >
                         ✕
                       </button>
@@ -488,14 +631,10 @@ function AdminPanel() {
 
             <div className="form-actions">
               <button type="submit" className="btn-primary">
-                {editingProductId ? '✅ Update Product' : '✅ Create Product'}
+                {editingProductId ? 'Update Product' : 'Create Product'}
               </button>
               {editingProductId && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={resetForm}
-                >
+                <button type="button" className="btn-secondary" onClick={resetForm}>
                   Cancel Edit
                 </button>
               )}

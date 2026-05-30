@@ -8,10 +8,13 @@ export type Cannabinoid = {
   name: string;
 };
 
+export type CannabinoidUnit = 'PERCENT' | 'MG';
+
 export type ProductCannabinoid = {
   productId: number;
   cannabinoidId: number;
   percentage: string;
+  unit: CannabinoidUnit;
   cannabinoid: Cannabinoid;
 };
 

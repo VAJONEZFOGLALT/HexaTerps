@@ -52,6 +52,7 @@ function App() {
     'D9/D9+Other cannabinoids blends',
     'Edibles',
     'Concentrates',
+    'Hardware',
   ];
 
   const orderedCategories = useMemo(() => {
@@ -232,7 +233,10 @@ function App() {
               const inCart = cart.find((x) => x.product.id === p.id)?.quantity ?? 0;
               const canAdd = p.stock > inCart;
               const cannabinoidsText = p.cannabinoids
-                .map((c) => `${c.cannabinoid.name} ${c.percentage}%`)
+                .map((c) => {
+                  const suffix = c.unit === 'MG' ? 'mg' : '%';
+                  return `${c.cannabinoid.name} ${c.percentage}${suffix}`;
+                })
                 .join(' • ');
 
               return (

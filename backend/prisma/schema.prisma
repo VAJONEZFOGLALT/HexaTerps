@@ -20,6 +20,11 @@ enum Strain {
   HYBRID
 }
 
+enum CannabinoidUnit {
+  PERCENT
+  MG
+}
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -78,7 +83,8 @@ model Cannabinoid {
 model ProductCannabinoid {
   productId     Int
   cannabinoidId Int
-  percentage    Decimal @db.Decimal(5, 2)
+  percentage    String  @db.VarChar(40)
+  unit          CannabinoidUnit @default(PERCENT)
 
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   cannabinoid   Cannabinoid @relation(fields: [cannabinoidId], references: [id], onDelete: Restrict)

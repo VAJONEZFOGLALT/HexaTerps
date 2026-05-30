@@ -2,8 +2,6 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
-  IsNotEmpty,
-  IsNumberString,
   IsOptional,
   IsString,
   MaxLength,
@@ -16,13 +14,19 @@ import { ProductCannabinoidDto } from './product-cannabinoid.dto';
 
 export class CreateProductDto {
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(200)
   name!: string;
 
   @IsInt()
+  @IsOptional()
   @Min(1)
-  categoryId!: number;
+  categoryId?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  categoryCustom?: string;
 
   @IsString()
   @IsOptional()
@@ -36,8 +40,9 @@ export class CreateProductDto {
   @MaxLength(120)
   flavour?: string;
 
-  @IsNumberString()
+  @IsString()
   @IsNotEmpty()
+  @MaxLength(40)
   price!: string;
 
   @IsInt()

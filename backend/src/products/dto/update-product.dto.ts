@@ -2,7 +2,6 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
-  IsNumberString,
   IsOptional,
   IsString,
   MaxLength,
@@ -26,6 +25,11 @@ export class UpdateProductDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(200)
+  categoryCustom?: string;
+
+  @IsString()
+  @IsOptional()
   description?: string;
 
   @IsEnum(Strain)
@@ -37,8 +41,9 @@ export class UpdateProductDto {
   @MaxLength(120)
   flavour?: string;
 
-  @IsNumberString()
+  @IsString()
   @IsOptional()
+  @MaxLength(40)
   price?: string;
 
   @IsInt()

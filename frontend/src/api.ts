@@ -1,8 +1,6 @@
-/// <reference types="vite/client" />
-
 import type { Category, CreateOrderPayload, Order, Product } from './types';
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+export const API_BASE = (window as any).__API_BASE_URL__ ?? '';
 
 export function buildApiUrl(path: string): string {
   return `${API_BASE}${path}`;
@@ -22,6 +20,16 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getCategories(): Promise<Category[]> {
     return http('/api/categories');
+  },
+
+  deleteProduct(id: number, adminToken: string): Promise<{ ok: true }> {
+    return http(`/api/admin/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+    });
   },
 
   getProducts(): Promise<Product[]> {

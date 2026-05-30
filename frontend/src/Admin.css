@@ -1,153 +1,259 @@
+:root {
+  color-scheme: dark;
+}
+
+.admin-page,
 .admin-login {
-  width: 100%;
-  height: 100vh;
+  min-height: 100vh;
+  color: #f5f7fb;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(255, 131, 75, 0.16), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(95, 135, 255, 0.16), transparent 32%),
+    linear-gradient(160deg, #090c12 0%, #111723 45%, #0f1420 100%);
+}
+
+.admin-login {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  font-family: system-ui, -apple-system, sans-serif;
+  padding: 24px;
+}
+
+.glass {
+  background: rgba(14, 18, 28, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(16px);
 }
 
 .admin-card {
-  background: white;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 400px;
-  width: 90%;
+  width: min(100%, 440px);
+  padding: 32px;
+  border-radius: 24px;
 }
 
-.admin-card h1 {
-  margin: 0 0 30px 0;
-  font-size: 28px;
-  text-align: center;
+.admin-card h1,
+.admin-header h1,
+.admin-form-section h2,
+.admin-products-section h2 {
+  margin: 0;
+  letter-spacing: -0.02em;
 }
 
-.admin-card div {
-  margin-bottom: 20px;
+.admin-subtitle,
+.muted,
+.section-meta,
+.tiny {
+  color: rgba(233, 239, 255, 0.72);
 }
 
-.admin-card label {
+.admin-card .form-group,
+.admin-form .form-group {
+  margin-bottom: 18px;
+}
+
+.admin-card label,
+.admin-form label,
+.field span {
   display: block;
   margin-bottom: 8px;
-  font-weight: 600;
-  font-size: 14px;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: #e9efff;
 }
 
-.admin-card input {
+.admin-card input,
+.admin-card textarea,
+.admin-card select,
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 12px 14px;
+  color: #f5f7fb;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 14px;
   font-size: 14px;
   box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.admin-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  font-family: system-ui, -apple-system, sans-serif;
+.admin-card input:focus,
+.admin-card textarea:focus,
+.admin-card select:focus,
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+  border-color: rgba(116, 172, 255, 0.75);
+  box-shadow: 0 0 0 4px rgba(116, 172, 255, 0.16);
+}
+
+.admin-card input::placeholder,
+.admin-card textarea::placeholder,
+.admin-form input::placeholder,
+.admin-form textarea::placeholder {
+  color: rgba(233, 239, 255, 0.42);
+}
+
+.admin-header,
+.admin-main {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
 }
 
 .admin-header {
-  background: #1a1a1a;
-  color: white;
-  padding: 20px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.admin-header h1 {
-  margin: 0;
-  font-size: 28px;
-}
-
-.btn-logout {
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.btn-logout:hover {
-  background: #cc0000;
+  gap: 20px;
+  padding: 28px 24px;
+  margin-top: 24px;
+  border-radius: 24px;
 }
 
 .admin-main {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 40px 20px;
-}
-
-.admin-form-section h2 {
-  margin-top: 0;
-  margin-bottom: 30px;
-  font-size: 24px;
-}
-
-.admin-form {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.form-group {
-  margin-bottom: 25px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-  font-family: inherit;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
-}
-
-.form-group.checkbox {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.form-group.checkbox input {
-  width: auto;
-  margin-right: 10px;
-  margin-bottom: 0;
-}
-
-.form-group.checkbox label {
-  margin-bottom: 0;
-  font-weight: normal;
-}
-
-.form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.95fr);
+  gap: 22px;
+  padding: 22px 0 36px;
+}
+
+.admin-products-section,
+.admin-form-section {
+  border-radius: 24px;
+  padding: 24px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.section-meta {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.product-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.product-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.product-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.product-card-top strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.product-card-body {
+  display: grid;
+  gap: 8px;
+}
+
+.product-card-defaults {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: rgba(233, 239, 255, 0.82);
+  font-size: 0.92rem;
+}
+
+.product-card-actions,
+.form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-small,
+.btn-danger,
+.btn-logout,
+.mode-btn,
+.btn-remove {
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.btn-primary,
+.btn-logout {
+  padding: 12px 18px;
+}
+
+.btn-primary {
+  color: #09111d;
+  background: linear-gradient(135deg, #8ad1ff 0%, #b8ffcf 100%);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-small:hover,
+.btn-danger:hover,
+.btn-logout:hover,
+.mode-btn:hover,
+.btn-remove:hover {
+  transform: translateY(-1px);
+}
+
+.btn-secondary,
+.btn-small,
+.mode-btn {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.btn-secondary:hover,
+.btn-small:hover,
+.mode-btn:hover {
+  border-color: rgba(116, 172, 255, 0.55);
+}
+
+.btn-danger,
+.btn-remove {
+  padding: 10px 14px;
+  background: rgba(255, 73, 97, 0.16);
+  color: #ffbcc7;
+  border: 1px solid rgba(255, 73, 97, 0.26);
+}
+
+.btn-danger:hover,
+.btn-remove:hover {
+  background: rgba(255, 73, 97, 0.24);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #8ad1ff 0%, #b8ffcf 100%);
+  color: #09111d;
+  border-color: transparent;
 }
 
 .field-mode-toggle {
@@ -156,164 +262,140 @@
   margin-bottom: 10px;
 }
 
-.mode-btn {
-  flex: 1;
-  padding: 10px;
-  border: 2px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
+.admin-form {
+  display: grid;
+  gap: 18px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.form-group.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group.checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.form-group.checkbox label {
+  margin: 0;
   font-weight: 600;
-  transition: all 0.2s;
-}
-
-.mode-btn.active {
-  border-color: #4a90e2;
-  background: #4a90e2;
-  color: white;
-}
-
-.mode-btn:hover {
-  border-color: #4a90e2;
 }
 
 .cannabinoids-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cannabinoids-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .cannabinoids-header h3 {
   margin: 0;
-  font-size: 18px;
-}
-
-.btn-small {
-  background: #4a90e2;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  transition: background 0.2s;
-}
-
-.btn-small:hover {
-  background: #357abd;
 }
 
 .cannabinoids-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 12px;
 }
 
 .cannabinoid-entry {
   display: grid;
-  grid-template-columns: 1fr 100px 30px 40px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(120px, 1fr) 94px 42px;
   gap: 10px;
   align-items: center;
 }
 
-.cannabinoid-entry select {
-  width: 100%;
+.cannabinoid-entry select,
+.cannabinoid-entry input {
+  min-width: 0;
 }
 
-.percentage-input {
+.percentage-input,
+.unit-input {
   width: 100% !important;
 }
 
-.btn-remove {
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7fb;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
-.btn-remove:hover {
-  background: #cc0000;
+.badge.strong {
+  background: linear-gradient(135deg, #8ad1ff 0%, #b8ffcf 100%);
+  color: #09111d;
 }
 
-.muted {
-  color: #999;
-  font-size: 14px;
-  text-align: center;
-  padding: 20px;
-}
-
-.form-actions {
-  margin-top: 30px;
-  display: flex;
-  gap: 15px;
-}
-
-.btn-primary {
-  flex: 1;
-  padding: 14px;
-  background: #4a90e2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-primary:hover {
-  background: #357abd;
+.admin-error,
+.admin-success {
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: 0.95rem;
 }
 
 .admin-error {
-  background: #ffe0e0;
-  color: #cc0000;
-  padding: 15px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border-left: 4px solid #cc0000;
-  font-size: 14px;
+  background: rgba(255, 73, 97, 0.14);
+  border: 1px solid rgba(255, 73, 97, 0.22);
+  color: #ffc0ca;
 }
 
 .admin-success {
-  background: #e0ffe0;
-  color: #00cc00;
-  padding: 15px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border-left: 4px solid #00cc00;
-  font-size: 14px;
+  background: rgba(55, 194, 118, 0.14);
+  border: 1px solid rgba(55, 194, 118, 0.22);
+  color: #cbffdf;
 }
 
-@media (max-width: 600px) {
-  .admin-header {
-    flex-direction: column;
-    gap: 15px;
-    padding: 15px 20px;
-  }
+.admin-subtitle,
+.tiny {
+  margin-top: 6px;
+  font-size: 0.86rem;
+}
 
-  .admin-form {
+@media (max-width: 980px) {
+  .admin-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-header,
+  .admin-products-section,
+  .admin-form-section,
+  .admin-card {
     padding: 20px;
   }
 
-  .form-row {
+  .form-row,
+  .cannabinoid-entry {
     grid-template-columns: 1fr;
   }
 
-  .cannabinoid-entry {
-    grid-template-columns: 1fr 80px 30px 40px;
+  .field-mode-toggle,
+  .product-card-actions,
+  .form-actions {
+    flex-direction: column;
   }
 }

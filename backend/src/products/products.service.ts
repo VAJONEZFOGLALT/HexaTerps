@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Product } from '@prisma/client';
+import { CannabinoidUnit, Prisma, Product } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -7,6 +7,31 @@ import { UpdateProductDto } from './dto/update-product.dto';
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async resolveCategoryId(categoryId?: number, categoryCustom?: string): Promise<number> {
+    if (categoryId) {
+      const existing = await this.prisma.category.findUnique({ where: { id: categoryId } });
+      if (!existing) throw new BadRequestException('Category not found');
+      return existing.id;
+    }
+
+    const name = categoryCustom?.trim();
+    if (!name) throw new BadRequestException('Category is required');
+
+    const existing = await this.prisma.category.findUnique({ where: { name } });
+    if (existing) return existing.id;
+
+    const created = await this.prisma.category.create({ data: { name } });
+    return created.id;
+  }
+
+  private resolveProductName(dto: { name?: string; flavour?: string }, categoryName: string): string {
+    const explicit = dto.name?.trim();
+    if (explicit) return explicit;
+    const flavour = dto.flavour?.trim();
+    if (flavour) return flavour;
+    return categoryName;
+  }
 
   findAll() {
     return this.prisma.product.findMany({
@@ -51,6 +76,10 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto) {
+    const categoryId = await this.resolveCategoryId(dto.categoryId, dto.categoryCustom);
+    const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) throw new BadRequestException('Category not found');
+
     const price = new Prisma.Decimal(dto.price);
 
     const cannabinoids = dto.cannabinoids ?? [];
@@ -61,8 +90,8 @@ export class ProductsService {
 
     const product = await this.prisma.product.create({
       data: {
-        name: dto.name,
-        categoryId: dto.categoryId,
+        name: this.resolveProductName(dto, category.name),
+        categoryId,
         description: dto.description,
         strain: dto.strain,
         flavour: dto.flavour,
@@ -78,7 +107,8 @@ export class ProductsService {
         data: cannabinoids.map((c) => ({
           productId: product.id,
           cannabinoidId: c.cannabinoidId,
-          percentage: new Prisma.Decimal(c.percentage),
+          percentage: c.percentage,
+          unit: c.unit ?? CannabinoidUnit.PERCENT,
         })),
       });
     }
@@ -89,11 +119,20 @@ export class ProductsService {
   async update(id: number, dto: UpdateProductDto) {
     await this.findOne(id);
 
+    const categoryId = dto.categoryCustom
+      ? await this.resolveCategoryId(undefined, dto.categoryCustom)
+      : dto.categoryId;
+    const category = categoryId
+      ? await this.prisma.category.findUnique({ where: { id: categoryId } })
+      : undefined;
+
     const updated = await this.prisma.product.update({
       where: { id },
       data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+        ...(dto.name !== undefined
+          ? { name: dto.name.trim() || (category?.name ?? dto.name) }
+          : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.strain !== undefined ? { strain: dto.strain } : {}),
         ...(dto.flavour !== undefined ? { flavour: dto.flavour } : {}),
@@ -119,7 +158,8 @@ export class ProductsService {
                 data: cannabinoids.map((c) => ({
                   productId: updated.id,
                   cannabinoidId: c.cannabinoidId,
-                  percentage: new Prisma.Decimal(c.percentage),
+                  percentage: c.percentage,
+                  unit: c.unit ?? CannabinoidUnit.PERCENT,
                 })),
               }),
             ]
