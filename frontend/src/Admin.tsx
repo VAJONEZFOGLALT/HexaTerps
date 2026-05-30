@@ -18,12 +18,14 @@ type CannabinoidEntry = {
 };
 
 type CategoryMode = 'dropdown' | 'custom';
+type PricingMode = 'single' | 'hardware';
 
 type ProductForm = {
   name: string;
   categoryId: string;
   categoryCustom: string;
   categoryMode: CategoryMode;
+  pricingMode: PricingMode;
   strain: Strain;
   description: string;
   flavour: string;
@@ -67,6 +69,7 @@ const defaultForm: ProductForm = {
   categoryId: '',
   categoryCustom: '',
   categoryMode: 'dropdown',
+  pricingMode: 'single',
   strain: 'HYBRID',
   description: '',
   flavour: '',
@@ -75,7 +78,7 @@ const defaultForm: ProductForm = {
   image: '',
   featured: false,
   cannabinoids: [],
-  devices: [createDeviceEntry()],
+  devices: [],
 };
 
 function formatCannabinoidEntry(entry: ProductCannabinoid): string {
@@ -116,6 +119,29 @@ function ProductEditorFields({
   onCancel,
   cancelLabel = 'Cancel',
 }: ProductEditorFieldsProps) {
+  const hasHardwarePricing = form.pricingMode === 'hardware';
+
+  function switchToHardwarePricing() {
+    setForm((prev) => {
+      const nextDevices = prev.devices.length > 0 ? prev.devices : [createDeviceEntry('', prev.price)];
+
+      return {
+        ...prev,
+        pricingMode: 'hardware',
+        price: prev.price || nextDevices[0]?.price || '',
+        devices: nextDevices,
+      };
+    });
+  }
+
+  function switchToSinglePricing() {
+    setForm((prev) => ({
+      ...prev,
+      pricingMode: 'single',
+      price: prev.price || prev.devices[0]?.price || '',
+    }));
+  }
+
   function handleAddDevice() {
     setForm((prev) => ({
       ...prev,
@@ -126,7 +152,11 @@ function ProductEditorFields({
   function handleRemoveDevice(idx: number) {
     setForm((prev) => ({
       ...prev,
-      devices: prev.devices.filter((_, i) => i !== idx),
+      devices: (() => {
+        const next = prev.devices.filter((_, i) => i !== idx);
+        return next.length > 0 ? next : [createDeviceEntry()];
+      })(),
+      price: hasHardwarePricing ? prev.devices.filter((_, i) => i !== idx)[0]?.price ?? prev.price : prev.price,
     }));
   }
 
@@ -137,7 +167,11 @@ function ProductEditorFields({
       const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
 
       next[idx] = updated;
-      return { ...prev, devices: next };
+      return {
+        ...prev,
+        devices: next,
+        price: hasHardwarePricing && idx === 0 && field === 'price' ? value : prev.price,
+      };
     });
   }
 
@@ -235,6 +269,78 @@ function ProductEditorFields({
         </div>
 
         <div className="form-group">
+          <label>Stock</label>
+          <input type="number" min="0" value={form.stock} onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))} />
+        </div>
+
+        <div className="form-group">
+          <label>Pricing</label>
+          <div className="field-mode-toggle pricing-toggle">
+            <button
+              type="button"
+              className={`mode-btn ${form.pricingMode === 'single' ? 'active' : ''}`}
+              onClick={switchToSinglePricing}
+            >
+              Single price
+            </button>
+            <button
+              type="button"
+              className={`mode-btn ${form.pricingMode === 'hardware' ? 'active' : ''}`}
+              onClick={switchToHardwarePricing}
+            >
+              Hardware pricing
+            </button>
+          </div>
+          <p className="muted tiny pricing-help">
+            Use single price for simple listings. Switch to hardware pricing when the same oil has multiple hardware options.
+          </p>
+        </div>
+      </div>
+
+      {hasHardwarePricing ? (
+        <div className="cannabinoids-section">
+          <div className="cannabinoids-header">
+            <div>
+              <h3>Hardware</h3>
+              <p className="muted tiny">Add each hardware type with its own price. The main price is hidden in this mode.</p>
+            </div>
+            <button type="button" onClick={handleAddDevice} className="btn-small">
+              + Add Hardware
+            </button>
+          </div>
+
+          <div className="cannabinoids-list">
+            {form.devices.length === 0 ? (
+              <p className="muted">No hardware rows added</p>
+            ) : (
+              form.devices.map((device, idx) => (
+                <div key={idx} className="cannabinoid-entry">
+                  <input
+                    type="text"
+                    value={device.deviceCustom}
+                    onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
+                    placeholder="Hardware type, e.g. cart, battery, pen"
+                  />
+
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={device.price}
+                    onChange={(e) => handleDeviceChange(idx, 'price', e.target.value)}
+                    placeholder="Price"
+                    className="percentage-input"
+                  />
+
+                  <button type="button" onClick={() => handleRemoveDevice(idx)} className="btn-remove" title="Remove hardware">
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="form-group pricing-single">
           <label>Price (CZK)</label>
           <input
             type="number"
@@ -244,99 +350,16 @@ function ProductEditorFields({
             placeholder="299.50"
             required
           />
+          <p className="muted tiny">Use this for products that only need one default price.</p>
         </div>
-
-        <div className="form-group">
-          <label>Stock</label>
-          <input type="number" min="0" value={form.stock} onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))} />
-        </div>
-      </div>
+      )}
 
       <div className="cannabinoids-section">
         <div className="cannabinoids-header">
           <div>
-            <h3>Devices</h3>
-            <p className="muted tiny">Add one or more device options and set the price for each one.</p>
+            <h3>Cannabinoids</h3>
+            <p className="muted tiny">Keep the blend/composition as-is, independent from hardware pricing.</p>
           </div>
-          <button type="button" onClick={handleAddDevice} className="btn-small">
-            + Add Device
-          </button>
-        </div>
-
-        <div className="cannabinoids-list">
-          {form.devices.length === 0 ? (
-            <p className="muted">No devices added</p>
-          ) : (
-            form.devices.map((device, idx) => (
-              <div key={idx} className="cannabinoid-entry">
-                <input
-                  type="text"
-                  value={device.deviceCustom}
-                  onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
-                  placeholder="Enter device name"
-                />
-
-                <input
-                  type="number"
-                  step="0.01"
-                  value={device.price}
-                  onChange={(e) => handleDeviceChange(idx, 'price', e.target.value)}
-                  placeholder="Price"
-                  className="percentage-input"
-                />
-
-                <button type="button" onClick={() => handleRemoveDevice(idx)} className="btn-remove" title="Remove device">
-                  ✕
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label>Description</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-          placeholder="Optional description"
-          rows={3}
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Flavour</label>
-        <input
-          type="text"
-          value={form.flavour}
-          onChange={(e) => setForm((p) => ({ ...p, flavour: e.target.value }))}
-          placeholder="Optional flavour"
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Image URL</label>
-        <input
-          type="text"
-          value={form.image}
-          onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))}
-          placeholder="https://..."
-        />
-      </div>
-
-      <div className="form-group checkbox">
-        <input
-          type="checkbox"
-          checked={form.featured}
-          onChange={(e) => setForm((p) => ({ ...p, featured: e.target.checked }))}
-          id="featured-check"
-        />
-        <label htmlFor="featured-check">Featured</label>
-      </div>
-
-      <div className="cannabinoids-section">
-        <div className="cannabinoids-header">
-          <h3>Cannabinoids</h3>
           <button type="button" onClick={handleAddCannabinoid} className="btn-small">
             + Add
           </button>
@@ -498,13 +521,9 @@ function AdminPanel() {
     setSuccess(null);
 
     try {
+      const hasHardwarePricing = productForm.pricingMode === 'hardware';
       const categoryCustom = productForm.categoryMode === 'custom' ? productForm.categoryCustom.trim() : '';
       const categoryId = productForm.categoryMode === 'dropdown' ? Number(productForm.categoryId) : undefined;
-
-      if (!productForm.price.trim()) {
-        setError('Please fill in the price');
-        return;
-      }
 
       if (productForm.categoryMode === 'dropdown' && !categoryId) {
         setError('Please select a category');
@@ -516,22 +535,39 @@ function AdminPanel() {
         return;
       }
 
-      const normalizedDevices = productForm.devices
+      const normalizedDevices = (hasHardwarePricing ? productForm.devices : [])
         .map((device) => ({
           deviceCustom: device.deviceCustom.trim(),
           price: device.price.trim(),
         }))
         .filter((device) => device.deviceCustom || device.price);
 
-      for (const device of normalizedDevices) {
-        if (!device.price) {
-          setError('Please fill in each device price');
+      if (hasHardwarePricing) {
+        if (normalizedDevices.length === 0) {
+          setError('Please add at least one hardware option');
           return;
         }
-        if (!device.deviceCustom) {
-          setError('Please enter a device name');
-          return;
+
+        for (const device of normalizedDevices) {
+          if (!device.price) {
+            setError('Please fill in each hardware price');
+            return;
+          }
+          if (!device.deviceCustom) {
+            setError('Please enter a hardware type');
+            return;
+          }
         }
+      } else if (!productForm.price.trim()) {
+        setError('Please fill in the price');
+        return;
+      }
+
+      const primaryPrice = hasHardwarePricing ? normalizedDevices[0]?.price ?? productForm.price.trim() : productForm.price.trim();
+
+      if (!primaryPrice) {
+        setError('Please fill in the price');
+        return;
       }
 
       const payload = {
@@ -541,7 +577,7 @@ function AdminPanel() {
         description: productForm.description.trim() || undefined,
         strain: productForm.strain,
         flavour: productForm.flavour.trim() || undefined,
-        price: productForm.price,
+        price: primaryPrice,
         stock: Number(productForm.stock) || 0,
         image: productForm.image.trim() || undefined,
         featured: productForm.featured,
@@ -626,6 +662,7 @@ function AdminPanel() {
       categoryId: String(product.categoryId),
       categoryCustom: '',
       categoryMode: 'dropdown',
+        pricingMode: product.devices.length > 0 ? 'hardware' : 'single',
       strain: product.strain,
       description: product.description ?? '',
       flavour: product.flavour ?? '',
@@ -650,6 +687,7 @@ function AdminPanel() {
       categoryId: String(product.categoryId),
       categoryCustom: '',
       categoryMode: 'dropdown',
+        pricingMode: product.devices.length > 0 ? 'hardware' : 'single',
       strain: product.strain,
       description: product.description ?? '',
       flavour: product.flavour ?? '',
@@ -830,7 +868,7 @@ function AdminPanel() {
                         <div className="muted"><strong>Flavour:</strong> {product.flavour}</div>
                       ) : null}
                       <div className="muted">
-                        <strong>Devices:</strong> {deviceText || 'none'}
+                        <strong>Hardware:</strong> {deviceText || 'none'}
                       </div>
                       <div className="product-card-defaults">
                         <span>Strain: {product.strain}</span>

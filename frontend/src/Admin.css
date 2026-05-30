@@ -129,6 +129,18 @@
   margin-bottom: 14px;
 }
 
+.pricing-toggle {
+  margin-bottom: 10px;
+}
+
+.pricing-help {
+  margin: 0;
+}
+
+.pricing-single {
+  margin-bottom: 0;
+}
+
 .admin-header {
   display: flex;
   justify-content: space-between;
