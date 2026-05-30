@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import type { Category, CreateOrderPayload, DeliveryMethod, Product } from './types';
 import { api } from './api';
@@ -41,6 +41,7 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Record<number, number>>({});
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +52,7 @@ function App() {
   const [note, setNote] = useState('');
   const [orderResult, setOrderResult] = useState<{ id: number } | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const categoryRefs = useRef<Record<number, HTMLElement | null>>({});
 
   useEffect(() => {
     const saved = localStorage.getItem('hexaterps.cart');
@@ -173,6 +175,22 @@ function App() {
     return products.filter((p) => p.categoryId === selectedCategoryId);
   }, [products, selectedCategoryId]);
 
+  const featuredProducts = useMemo(() => filteredProducts.filter((p) => p.featured), [filteredProducts]);
+
+  const productsByCategory = useMemo(() => {
+    if (selectedCategoryId !== 'all') {
+      const selected = categories.find((c) => c.id === selectedCategoryId);
+      return selected ? [{ category: selected, items: filteredProducts }] : [];
+    }
+
+    return orderedCategories
+      .map((category) => ({
+        category,
+        items: products.filter((p) => p.categoryId === category.id),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [categories, filteredProducts, orderedCategories, products, selectedCategoryId]);
+
   const cartTotal = useMemo(() => sumCart(cart), [cart]);
 
   function getSelectedDeviceId(product: Product): number | undefined {
@@ -188,6 +206,22 @@ function App() {
     return cart
       .filter((item) => item.product.id === productId)
       .reduce((acc, item) => acc + item.quantity, 0);
+  }
+
+  function jumpToCategory(categoryId: number | 'all') {
+    setSelectedCategoryId(categoryId);
+    setMenuOpen(false);
+    if (categoryId === 'all') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    window.setTimeout(() => {
+      categoryRefs.current[categoryId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  }
+
+  function setCategoryRef(categoryId: number, element: HTMLElement | null) {
+    categoryRefs.current[categoryId] = element;
   }
 
   function setQuantity(product: Product, deviceId: number | undefined, quantity: number) {
@@ -258,11 +292,40 @@ function App() {
   return (
     <div className="page">
       <header className="header">
-        <div>
+        <div className="brandBlock">
           <div className="brand">HexaTerps</div>
           <div className="tagline">{t('appTagline')}</div>
         </div>
-        <div className="headerRight">
+
+        <div className="headerNav">
+          <div className={`menuWrap ${menuOpen ? 'open' : ''}`}>
+            <button
+              type="button"
+              className="menuButton"
+              onClick={() => setMenuOpen((prev) => !prev)}
+            >
+              Shop by category <span>▾</span>
+            </button>
+
+            {menuOpen ? (
+              <div className="menuDropdown">
+                <button type="button" className="menuItem" onClick={() => jumpToCategory('all')}>
+                  All products
+                </button>
+                {orderedCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className="menuItem"
+                    onClick={() => jumpToCategory(category.id)}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
           <a href="/admin" className="admin-link" title="Admin Panel">
             🛡️
           </a>
@@ -270,59 +333,158 @@ function App() {
         </div>
       </header>
 
+      <section className="hero">
+        <div className="heroCopy">
+          <div className="heroEyebrow">Neon drops • live inventory • custom device pricing</div>
+          <h1>Welcome to the cyber shop floor.</h1>
+          <p>
+            Browse clean category drops, pick your device variant, and keep the checkout fast.
+          </p>
+          <div className="heroActions">
+            <button type="button" className="heroButton" onClick={() => jumpToCategory('all')}>
+              Explore shop
+            </button>
+            <button type="button" className="heroGhost" onClick={() => window.scrollTo({ top: document.body.scrollHeight * 0.4, behavior: 'smooth' })}>
+              View products
+            </button>
+          </div>
+        </div>
+
+        <div className="heroStats">
+          <div className="statCard">
+            <span>Categories</span>
+            <strong>{orderedCategories.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Featured</span>
+            <strong>{featuredProducts.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Cart total</span>
+            <strong>{formatCzk(cartTotal)}</strong>
+          </div>
+        </div>
+      </section>
+
 
       <main className="layout">
-        <aside className="sidebar">
-          <div className="panelTitle">{t('categories')}</div>
-          <button
-            className={selectedCategoryId === 'all' ? 'chip active' : 'chip'}
-            onClick={() => setSelectedCategoryId('all')}
-            type="button"
-          >
-            {t('all')}
-          </button>
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            {orderedCategories
-              .filter((c) => c.name === 'Limited blend' || c.name === 'Limited HHC blends')
-              .map((c) => (
-                <button
-                  key={c.id}
-                  className={selectedCategoryId === c.id ? 'chip active' : 'chip'}
-                  onClick={() => setSelectedCategoryId(c.id)}
-                  type="button"
-                  style={{ flex: '1 1 calc(50% - 4px)', minWidth: 150 }}
-                >
-                  {c.name}
-                </button>
-              ))}
-          </div>
-
-          {orderedCategories
-            .filter((c) => c.name !== 'Limited blend' && c.name !== 'Limited HHC blends')
-            .map((c) => (
-              <button
-                key={c.id}
-                className={selectedCategoryId === c.id ? 'chip active' : 'chip'}
-                onClick={() => setSelectedCategoryId(c.id)}
-                type="button"
-              >
-                {c.name}
-              </button>
-            ))}
-        </aside>
-
         <section className="content">
-          <div className="panelTitle">{t('products')}</div>
+          <div className="sectionHead">
+            <div>
+              <div className="panelTitle">{t('products')}</div>
+              <div className="muted">Choose a category from the menu to jump straight there.</div>
+            </div>
+            <button type="button" className="chip chipInline" onClick={() => jumpToCategory('all')}>
+              Show all
+            </button>
+          </div>
           {loading ? <div className="muted">{t('loading')}</div> : null}
           {error ? <div className="error">{error}</div> : null}
           {!loading && filteredProducts.length === 0 ? (
             <div className="muted">{t('noProducts')}</div>
           ) : null}
 
+          {selectedCategoryId === 'all' && featuredProducts.length > 0 ? (
+            <div className="featuredBlock">
+              <div className="sectionLabel">Featured</div>
+              <div className="grid">
+                {featuredProducts.map((p) => {
+                  const selectedDeviceId = getSelectedDeviceId(p);
+                  const selectedDevice =
+                    p.devices.find((device) => device.deviceId === selectedDeviceId) ??
+                    p.devices[0];
+                  const unitPrice = selectedDevice?.price ?? p.price;
+                  const inCart = getSelectedQuantity(p.id, selectedDeviceId);
+                  const totalInCart = getProductQuantityInCart(p.id);
+                  const canAdd = p.stock > totalInCart;
+                  const cannabinoidsText = p.cannabinoids
+                    .map((c) => {
+                      const suffix = c.unit === 'MG' ? 'mg' : '%';
+                      return `${c.cannabinoid.name} ${c.percentage}${suffix}`;
+                    })
+                    .join(' • ');
+                  const deviceText = p.devices
+                    .map((device) => `${device.device.name} ${formatCzk(device.price)}`)
+                    .join(' • ');
 
-          <div className="grid">
-            {filteredProducts.map((p) => {
+                  return (
+                    <article key={p.id} className="card">
+                      <div className="cardTop">
+                        <div className="cardTitle">{p.name}</div>
+                        <div className="badges">
+                          <span className="badge">{p.category?.name}</span>
+                          <span className="badge">{p.strain.toLowerCase()}</span>
+                          {p.featured ? <span className="badge strong">{t('featured')}</span> : null}
+                        </div>
+                      </div>
+
+                      {p.flavour ? <div className="muted">{t('flavourPrefix')} {p.flavour}</div> : null}
+                      {cannabinoidsText ? <div className="muted">{t('compositionPrefix')} {cannabinoidsText}</div> : null}
+                      {p.devices.length > 0 ? <div className="muted">Device options: {deviceText}</div> : null}
+
+                      {p.devices.length > 0 ? (
+                        <label className="field compact">
+                          <span>Device</span>
+                          <select
+                            value={selectedDeviceId ?? ''}
+                            onChange={(e) => {
+                              const nextDeviceId = Number(e.target.value);
+                              setSelectedDeviceIds((prev) => ({
+                                ...prev,
+                                [p.id]: nextDeviceId,
+                              }));
+                            }}
+                          >
+                            {p.devices.map((device) => (
+                              <option key={device.deviceId} value={device.deviceId}>
+                                {device.device.name} - {formatCzk(device.price)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+
+                      <div className="cardBottom">
+                        <div className="price">{formatCzk(unitPrice)}</div>
+                        <div className="stock">{t('inStockPrefix')} {p.stock}</div>
+                        <div className="qty">
+
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setQuantity(p, selectedDeviceId, inCart - 1)}
+                            disabled={inCart <= 0}
+                          >
+                            −
+                          </button>
+                          <div className="qtyVal">{inCart}</div>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setQuantity(p, selectedDeviceId, inCart + 1)}
+                            disabled={!canAdd}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {productsByCategory.map(({ category, items }) => (
+            <section
+              key={category.id}
+              className="categoryBlock"
+              ref={(el) => setCategoryRef(category.id, el)}
+              id={`category-${category.id}`}
+            >
+              <div className="sectionLabel">{category.name}</div>
+              <div className="grid">
+                {items.map((p) => {
               const selectedDeviceId = getSelectedDeviceId(p);
               const selectedDevice =
                 p.devices.find((device) => device.deviceId === selectedDeviceId) ??
@@ -341,8 +503,8 @@ function App() {
                 .map((device) => `${device.device.name} ${formatCzk(device.price)}`)
                 .join(' • ');
 
-              return (
-                <article key={p.id} className="card">
+                  return (
+                    <article key={p.id} className="card">
                   <div className="cardTop">
                     <div className="cardTitle">{p.name}</div>
                     <div className="badges">
@@ -403,10 +565,12 @@ function App() {
                       </button>
                     </div>
                   </div>
-                </article>
-              );
-            })}
-          </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </section>
 
         <aside className="sidebar">
