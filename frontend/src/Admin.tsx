@@ -630,9 +630,12 @@ function AdminPanel() {
 
             <div className="cannabinoids-section">
               <div className="cannabinoids-header">
-                <h3>Devices</h3>
+                <div>
+                  <h3>Devices</h3>
+                  <p className="muted tiny">Add one or more device options and set the price for each one.</p>
+                </div>
                 <button type="button" onClick={handleAddDevice} className="btn-small">
-                  + Add
+                  + Add Device
                 </button>
               </div>
 

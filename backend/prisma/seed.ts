@@ -34,29 +34,29 @@ const BASE_CANNABINOIDS = [
 
 const BASE_DEVICES = ['Cartridge', 'Small tank', 'Big tank', 'Disposable', 'Battery'];
 
-async function main() {
+export async function seedCanonicalData(client: PrismaClient = prisma) {
   // Create canonical categories if they don't exist
   for (const name of CANONICAL_CATEGORIES) {
-    const existing = await prisma.category.findUnique({ where: { name } });
+    const existing = await client.category.findUnique({ where: { name } });
     if (!existing) {
-      await prisma.category.create({ data: { name } });
+      await client.category.create({ data: { name } });
       console.log(`Created category: ${name}`);
     }
   }
 
   // Create base cannabinoids if they don't exist
   for (const name of BASE_CANNABINOIDS) {
-    const existing = await prisma.cannabinoid.findUnique({ where: { name } });
+    const existing = await client.cannabinoid.findUnique({ where: { name } });
     if (!existing) {
-      await prisma.cannabinoid.create({ data: { name } });
+      await client.cannabinoid.create({ data: { name } });
       console.log(`Created cannabinoid: ${name}`);
     }
   }
 
   for (const name of BASE_DEVICES) {
-    const existing = await prisma.device.findUnique({ where: { name } });
+    const existing = await client.device.findUnique({ where: { name } });
     if (!existing) {
-      await prisma.device.create({ data: { name } });
+      await client.device.create({ data: { name } });
       console.log(`Created device: ${name}`);
     }
   }
@@ -66,12 +66,14 @@ async function main() {
   );
 }
 
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith('seed.ts')) {
+  seedCanonicalData()
+    .then(async () => {
+      await prisma.$disconnect();
+    })
+    .catch(async (e) => {
+      console.error(e);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}
