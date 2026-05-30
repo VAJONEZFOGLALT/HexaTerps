@@ -181,10 +181,10 @@ function App() {
     return orderedCategories
       .map((category) => {
         const items = products.filter((product) => product.categoryId === category.id);
-        if (items.length === 0) return null;
-
         const featuredCount = items.filter((product) => product.featured).length;
-        const lowestPrice = items.reduce((min, product) => Math.min(min, Number(product.price)), Number.POSITIVE_INFINITY);
+        const lowestPrice = items.length
+          ? items.reduce((min, product) => Math.min(min, Number(product.price)), Number.POSITIVE_INFINITY)
+          : Number.NaN;
 
         return {
           category,
@@ -354,10 +354,10 @@ function App() {
 
       <section className="hero">
         <div className="heroCopy">
-          <div className="heroEyebrow">Neon drops • live inventory • custom device pricing</div>
-          <h1>Welcome to the cyber shop floor.</h1>
+          <div className="heroEyebrow">After-hours boutique • live inventory • custom device pricing</div>
+          <h1>Welcome to the night shop.</h1>
           <p>
-            Browse clean category drops, pick your device variant, and keep the checkout fast.
+            A moody storefront for clean drops, premium browsing, and fast checkout.
           </p>
           <div className="heroActions">
             <button type="button" className="heroButton" onClick={() => jumpToCategory('all')}>
@@ -404,7 +404,7 @@ function App() {
         </div>
 
         <div className="showcaseGrid">
-          {categoryShowcase.slice(0, 6).map((entry) => (
+          {categoryShowcase.map((entry) => (
             <button
               key={entry.category.id}
               type="button"
@@ -413,10 +413,18 @@ function App() {
             >
               <div className="showcaseTop">
                 <span className="showcaseLabel">{entry.category.name}</span>
-                {entry.featuredCount > 0 ? <span className="showcaseBadge">{entry.featuredCount} featured</span> : null}
+                {entry.itemCount > 0 ? (
+                  <span className="showcaseBadge">
+                    {entry.featuredCount > 0 ? `${entry.featuredCount} featured` : `${entry.itemCount} live`}
+                  </span>
+                ) : (
+                  <span className="showcaseBadge mutedBadge">Empty</span>
+                )}
               </div>
               <strong>{entry.itemCount} products</strong>
-              <span className="showcasePrice">From {entry.priceLabel ?? '—'}</span>
+              <span className="showcasePrice">
+                {entry.itemCount > 0 ? `From ${entry.priceLabel ?? '—'}` : 'Ready for first drop'}
+              </span>
             </button>
           ))}
         </div>
@@ -427,111 +435,57 @@ function App() {
         <section className="content">
           <div className="sectionHead">
             <div>
-              <div className="panelTitle">{t('products')}</div>
-              <div className="muted">Choose a category from the menu to jump straight there.</div>
+              <div className="panelTitle">
+                {selectedCategoryId === 'all' ? 'Featured categories' : t('products')}
+              </div>
+              <div className="muted">
+                {selectedCategoryId === 'all'
+                  ? 'Pick a shelf from the cards or the dropdown to start browsing.'
+                  : 'Choose a category from the menu to jump straight there.'}
+              </div>
             </div>
-            <button type="button" className="chip chipInline" onClick={() => jumpToCategory('all')}>
-              Show all
-            </button>
+            {selectedCategoryId !== 'all' ? (
+              <button type="button" className="chip chipInline" onClick={() => jumpToCategory('all')}>
+                Back to categories
+              </button>
+            ) : null}
           </div>
           {loading ? <div className="muted">{t('loading')}</div> : null}
           {error ? <div className="error">{error}</div> : null}
-          {!loading && filteredProducts.length === 0 ? (
-            <div className="muted">{t('noProducts')}</div>
-          ) : null}
-
-          {selectedCategoryId === 'all' && featuredProducts.length > 0 ? (
-            <div className="featuredBlock">
-              <div className="sectionLabel">Featured</div>
-              <div className="grid">
-                {featuredProducts.map((p) => {
-                  const selectedDeviceId = getSelectedDeviceId(p);
-                  const selectedDevice =
-                    p.devices.find((device) => device.deviceId === selectedDeviceId) ??
-                    p.devices[0];
-                  const unitPrice = selectedDevice?.price ?? p.price;
-                  const inCart = getSelectedQuantity(p.id, selectedDeviceId);
-                  const totalInCart = getProductQuantityInCart(p.id);
-                  const canAdd = p.stock > totalInCart;
-                  const cannabinoidsText = p.cannabinoids
-                    .map((c) => {
-                      const suffix = c.unit === 'MG' ? 'mg' : '%';
-                      return `${c.cannabinoid.name} ${c.percentage}${suffix}`;
-                    })
-                    .join(' • ');
-                  const deviceText = p.devices
-                    .map((device) => `${device.device.name} ${formatCzk(device.price)}`)
-                    .join(' • ');
-
-                  return (
-                    <article key={p.id} className="card">
-                      <div className="cardTop">
-                        <div className="cardTitle">{p.name}</div>
-                        <div className="badges">
-                          <span className="badge">{p.category?.name}</span>
-                          <span className="badge">{p.strain.toLowerCase()}</span>
-                          {p.featured ? <span className="badge strong">{t('featured')}</span> : null}
-                        </div>
-                      </div>
-
-                      {p.flavour ? <div className="muted">{t('flavourPrefix')} {p.flavour}</div> : null}
-                      {cannabinoidsText ? <div className="muted">{t('compositionPrefix')} {cannabinoidsText}</div> : null}
-                      {p.devices.length > 0 ? <div className="muted">Device options: {deviceText}</div> : null}
-
-                      {p.devices.length > 0 ? (
-                        <label className="field compact">
-                          <span>Device</span>
-                          <select
-                            value={selectedDeviceId ?? ''}
-                            onChange={(e) => {
-                              const nextDeviceId = Number(e.target.value);
-                              setSelectedDeviceIds((prev) => ({
-                                ...prev,
-                                [p.id]: nextDeviceId,
-                              }));
-                            }}
-                          >
-                            {p.devices.map((device) => (
-                              <option key={device.deviceId} value={device.deviceId}>
-                                {device.device.name} - {formatCzk(device.price)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : null}
-
-                      <div className="cardBottom">
-                        <div className="price">{formatCzk(unitPrice)}</div>
-                        <div className="stock">{t('inStockPrefix')} {p.stock}</div>
-                        <div className="qty">
-
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => setQuantity(p, selectedDeviceId, inCart - 1)}
-                            disabled={inCart <= 0}
-                          >
-                            −
-                          </button>
-                          <div className="qtyVal">{inCart}</div>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => setQuantity(p, selectedDeviceId, inCart + 1)}
-                            disabled={!canAdd}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
+          {!loading && selectedCategoryId !== 'all' && filteredProducts.length === 0 ? (
+            <div className="marketEmpty">
+              <div className="marketEmptyLabel">No live drops yet</div>
+              <h2>Set the first collection in admin.</h2>
+              <p>
+                The storefront is ready — add products and the shelves will populate instantly.
+              </p>
+              <div className="marketEmptyActions">
+                <a href="/admin" className="heroButton">
+                  Open admin
+                </a>
+                <button type="button" className="heroGhost" onClick={() => jumpToCategory('all')}>
+                  Refresh shop view
+                </button>
               </div>
             </div>
           ) : null}
 
-          {productsByCategory.map(({ category, items }) => (
+          {selectedCategoryId === 'all' ? (
+            <div className="marketIntro">
+              <div className="marketEmptyLabel">Featured categories</div>
+              <h2>Choose a shelf before the products appear.</h2>
+              <p>
+                The homepage stays clean on purpose — tap a category card or use the dropdown to
+                enter the collection.
+              </p>
+              <div className="marketIntroNote">
+                Cyber boutique first. Product shelves load after a category is selected.
+              </div>
+            </div>
+          ) : null}
+
+          {selectedCategoryId !== 'all'
+            ? productsByCategory.map(({ category, items }) => (
             <section
               key={category.id}
               className="categoryBlock"
@@ -626,7 +580,8 @@ function App() {
                 })}
               </div>
             </section>
-          ))}
+              ))
+            : null}
         </section>
 
         <aside className="sidebar">
