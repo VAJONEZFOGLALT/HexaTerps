@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import './Admin.css';
 import type { Category, Cannabinoid } from './types';
 import { api } from './api';
-import { formatCzk } from './money';
 
 type FieldMode = 'dropdown' | 'custom';
 

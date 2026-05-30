@@ -129,6 +129,11 @@ async function main() {
               name,
               categoryId: category.id,
               description: null,
+              strain: p.strain,
+              flavour: null,
+              price,
+              stock,
+              image: p.image,
               featured: p.featured,
             },
           });
