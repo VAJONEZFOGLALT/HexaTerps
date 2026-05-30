@@ -4,7 +4,6 @@ import type {
   Category,
   Cannabinoid,
   CannabinoidUnit,
-  Device,
   Product,
   ProductCannabinoid,
   ProductDevice,
@@ -19,8 +18,6 @@ type CannabinoidEntry = {
 };
 
 type CategoryMode = 'dropdown' | 'custom';
-
-type DeviceMode = 'dropdown' | 'custom';
 
 type ProductForm = {
   name: string;
@@ -39,19 +36,12 @@ type ProductForm = {
 };
 
 type DeviceEntry = {
-  deviceId: number | string;
   deviceCustom: string;
-  deviceMode: DeviceMode;
   price: string;
 };
 
-function createDeviceEntry(
-  deviceId: number | string = '',
-  deviceCustom = '',
-  deviceMode: DeviceMode = 'dropdown',
-  price = '',
-): DeviceEntry {
-  return { deviceId, deviceCustom, deviceMode, price };
+function createDeviceEntry(deviceCustom = '', price = ''): DeviceEntry {
+  return { deviceCustom, price };
 }
 
 const defaultForm: ProductForm = {
@@ -84,7 +74,6 @@ function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cannabinoids, setCannabinoids] = useState<Cannabinoid[]>([]);
-  const [deviceOptions, setDeviceOptions] = useState<Device[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,15 +89,13 @@ function AdminPanel() {
   }, []);
 
   async function loadData() {
-    const [cats, cans, devs, prods] = await Promise.all([
+    const [cats, cans, prods] = await Promise.all([
       api.getCategories(),
       api.getCannabinoids(),
-      api.getDevices(),
       api.getProducts(),
     ]);
     setCategories(cats);
     setCannabinoids(cans);
-    setDeviceOptions(devs);
     setProducts(prods);
   }
 
@@ -177,33 +164,11 @@ function AdminPanel() {
     }));
   }
 
-  function handleDeviceChange(
-    idx: number,
-    field: 'deviceId' | 'deviceCustom' | 'deviceMode' | 'price',
-    value: string,
-  ) {
+  function handleDeviceChange(idx: number, field: 'deviceCustom' | 'price', value: string) {
     setForm((prev) => {
       const next = [...prev.devices];
       const current = next[idx] ?? createDeviceEntry();
       const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
-
-      if (field === 'deviceMode') {
-        if (value === 'dropdown') {
-          updated.deviceCustom = '';
-        } else {
-          updated.deviceId = '';
-        }
-      }
-
-      if (field === 'deviceId' && value) {
-        updated.deviceMode = 'dropdown';
-        updated.deviceCustom = '';
-      }
-
-      if (field === 'deviceCustom' && value.trim()) {
-        updated.deviceMode = 'custom';
-        updated.deviceId = '';
-      }
 
       next[idx] = updated;
       return { ...prev, devices: next };
@@ -274,22 +239,18 @@ function AdminPanel() {
 
       const normalizedDevices = form.devices
         .map((device) => ({
-          deviceId:
-            device.deviceMode === 'dropdown' && device.deviceId
-              ? Number(device.deviceId)
-              : undefined,
-          deviceCustom: device.deviceMode === 'custom' ? device.deviceCustom.trim() : '',
+          deviceCustom: device.deviceCustom.trim(),
           price: device.price.trim(),
         }))
-        .filter((device) => device.deviceId || device.deviceCustom || device.price);
+        .filter((device) => device.deviceCustom || device.price);
 
       for (const device of normalizedDevices) {
         if (!device.price) {
           setError('Please fill in each device price');
           return;
         }
-        if (!device.deviceId && !device.deviceCustom) {
-          setError('Please pick a device or enter a custom device name');
+        if (!device.deviceCustom) {
+          setError('Please enter a device name');
           return;
         }
       }
@@ -381,9 +342,7 @@ function AdminPanel() {
       cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
       devices:
         product.devices.length > 0
-          ? product.devices.map((device) =>
-              createDeviceEntry(device.deviceId, '', 'dropdown', device.price),
-            )
+          ? product.devices.map((device) => createDeviceEntry(device.device.name, device.price))
           : [createDeviceEntry()],
     });
   }
@@ -407,9 +366,7 @@ function AdminPanel() {
       cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
       devices:
         product.devices.length > 0
-          ? product.devices.map((device) =>
-              createDeviceEntry(device.deviceId, '', 'dropdown', device.price),
-            )
+          ? product.devices.map((device) => createDeviceEntry(device.device.name, device.price))
           : [createDeviceEntry()],
     });
   }
@@ -645,35 +602,12 @@ function AdminPanel() {
                 ) : (
                   form.devices.map((device, idx) => (
                     <div key={idx} className="cannabinoid-entry">
-                      <select
-                        value={device.deviceMode}
-                        onChange={(e) => handleDeviceChange(idx, 'deviceMode', e.target.value)}
-                        className="unit-input"
-                      >
-                        <option value="dropdown">Dropdown</option>
-                        <option value="custom">Custom</option>
-                      </select>
-
-                      {device.deviceMode === 'dropdown' ? (
-                        <select
-                          value={device.deviceId}
-                          onChange={(e) => handleDeviceChange(idx, 'deviceId', e.target.value)}
-                        >
-                          <option value="">-- Select Device --</option>
-                          {deviceOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={device.deviceCustom}
-                          onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
-                          placeholder="Enter device name, e.g. Cartridge"
-                        />
-                      )}
+                      <input
+                        type="text"
+                        value={device.deviceCustom}
+                        onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
+                        placeholder="Enter device name"
+                      />
 
                       <input
                         type="number"
