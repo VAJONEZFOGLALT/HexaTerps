@@ -177,6 +177,25 @@ function App() {
 
   const featuredProducts = useMemo(() => filteredProducts.filter((p) => p.featured), [filteredProducts]);
 
+  const categoryShowcase = useMemo(() => {
+    return orderedCategories
+      .map((category) => {
+        const items = products.filter((product) => product.categoryId === category.id);
+        if (items.length === 0) return null;
+
+        const featuredCount = items.filter((product) => product.featured).length;
+        const lowestPrice = items.reduce((min, product) => Math.min(min, Number(product.price)), Number.POSITIVE_INFINITY);
+
+        return {
+          category,
+          itemCount: items.length,
+          featuredCount,
+          priceLabel: Number.isFinite(lowestPrice) ? formatCzk(lowestPrice) : null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [orderedCategories, products]);
+
   const productsByCategory = useMemo(() => {
     if (selectedCategoryId !== 'all') {
       const selected = categories.find((c) => c.id === selectedCategoryId);
@@ -344,7 +363,14 @@ function App() {
             <button type="button" className="heroButton" onClick={() => jumpToCategory('all')}>
               Explore shop
             </button>
-            <button type="button" className="heroGhost" onClick={() => window.scrollTo({ top: document.body.scrollHeight * 0.4, behavior: 'smooth' })}>
+            <button
+              type="button"
+              className="heroGhost"
+              onClick={() => {
+                const target = document.querySelector('.categoryShowcase');
+                target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
               View products
             </button>
           </div>
@@ -363,6 +389,36 @@ function App() {
             <span>Cart total</span>
             <strong>{formatCzk(cartTotal)}</strong>
           </div>
+        </div>
+      </section>
+
+      <section className="categoryShowcase">
+        <div className="sectionHead showcaseHead">
+          <div>
+            <div className="panelTitle">Category shortcuts</div>
+            <div className="muted">Tap a card to jump straight into that shelf.</div>
+          </div>
+          <button type="button" className="chip chipInline" onClick={() => jumpToCategory('all')}>
+            Reset view
+          </button>
+        </div>
+
+        <div className="showcaseGrid">
+          {categoryShowcase.slice(0, 6).map((entry) => (
+            <button
+              key={entry.category.id}
+              type="button"
+              className={selectedCategoryId === entry.category.id ? 'showcaseCard active' : 'showcaseCard'}
+              onClick={() => jumpToCategory(entry.category.id)}
+            >
+              <div className="showcaseTop">
+                <span className="showcaseLabel">{entry.category.name}</span>
+                {entry.featuredCount > 0 ? <span className="showcaseBadge">{entry.featuredCount} featured</span> : null}
+              </div>
+              <strong>{entry.itemCount} products</strong>
+              <span className="showcasePrice">From {entry.priceLabel ?? '—'}</span>
+            </button>
+          ))}
         </div>
       </section>
 
