@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import type { Category, Product } from './types';
 import { api } from './api';
@@ -11,26 +11,16 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const categoryRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const [cats, prods] = await Promise.all([api.getCategories(), api.getProducts()]);
-        if (cancelled) return;
-        setCategories(cats);
-        setProducts(prods);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const [cats, prods] = await Promise.all([api.getCategories(), api.getProducts()]);
+      if (cancelled) return;
+      setCategories(cats);
+      setProducts(prods);
     }
 
     void load();
@@ -61,26 +51,19 @@ function App() {
     });
   }, [categories]);
 
-  const categoryShowcase = useMemo(() => {
-    return orderedCategories.map((category) => {
-      const items = products.filter((product) => product.categoryId === category.id);
-      const featuredCount = items.filter((product) => product.featured).length;
-      const lowestPrice = items.length
-        ? items.reduce((min, product) => Math.min(min, Number(product.price)), Number.POSITIVE_INFINITY)
-        : Number.NaN;
-
-      return {
-        category,
-        itemCount: items.length,
-        featuredCount,
-        priceLabel: Number.isFinite(lowestPrice) ? formatCzk(lowestPrice) : null,
-      };
-    });
-  }, [orderedCategories, products]);
+  const featuredCategories = useMemo(
+    () => orderedCategories.filter((category) => category.featured),
+    [orderedCategories],
+  );
 
   function jumpToCategory(categoryId: number | 'all') {
     setSelectedCategoryId(categoryId);
     setMenuOpen(false);
+
+    if (categoryId === 'all') return;
+    window.setTimeout(() => {
+      categoryRefs.current[categoryId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
   }
 
   if (window.location.pathname === '/admin') {
@@ -134,7 +117,7 @@ function App() {
           <div className="heroEyebrow">After-hours boutique • cyber palette • smooth motion</div>
           <h1>HexaTerps drops, styled like a night market.</h1>
           <p>
-            A generic landing page with a dark cyber skin, a featured categories section, and nothing else getting in the way.
+            A clean landing page with a dark cyber look, featured categories, and no product wall underneath.
           </p>
           <div className="heroActions">
             <button type="button" className="heroButton" onClick={() => setMenuOpen((prev) => !prev)}>
@@ -152,62 +135,48 @@ function App() {
             </button>
           </div>
         </div>
-
-        <div className="heroStats">
-          <div className="statCard">
-            <span>Categories</span>
-            <strong>{orderedCategories.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Featured</span>
-            <strong>{categoryShowcase.filter((entry) => entry.itemCount > 0).length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Live drops</span>
-            <strong>{products.length}</strong>
-          </div>
-        </div>
       </section>
 
       <section className="categoryShowcase">
         <div className="sectionHead showcaseHead">
           <div>
             <div className="panelTitle">Featured categories</div>
-            <div className="muted">Tap a card or use the dropdown to move around the catalog.</div>
+            <div className="muted">Pick a shelf or use the dropdown to jump there.</div>
           </div>
-          <button type="button" className="chip chipInline" onClick={() => jumpToCategory('all')}>
-            Featured only
-          </button>
         </div>
 
-        {loading ? <div className="muted">{t('loading')}</div> : null}
-        {error ? <div className="error">{error}</div> : null}
-
         <div className="showcaseGrid">
-          {categoryShowcase.map((entry, index) => (
-            <button
-              key={entry.category.id}
-              type="button"
-              className={selectedCategoryId === entry.category.id ? 'showcaseCard active' : 'showcaseCard'}
-              style={{ animationDelay: `${index * 70}ms` }}
-              onClick={() => jumpToCategory(entry.category.id)}
-            >
-              <div className="showcaseTop">
-                <span className="showcaseLabel">{entry.category.name}</span>
-                {entry.itemCount > 0 ? (
+          {featuredCategories.map((category, index) => {
+            const items = products.filter((product) => product.categoryId === category.id);
+            const featuredCount = items.filter((product) => product.featured).length;
+            const lowestPrice = items.length
+              ? items.reduce((min, product) => Math.min(min, Number(product.price)), Number.POSITIVE_INFINITY)
+              : Number.NaN;
+
+            return (
+              <button
+                key={category.id}
+                ref={(element) => {
+                  categoryRefs.current[category.id] = element;
+                }}
+                type="button"
+                className={selectedCategoryId === category.id ? 'showcaseCard active' : 'showcaseCard'}
+                style={{ animationDelay: `${index * 70}ms` }}
+                onClick={() => jumpToCategory(category.id)}
+              >
+                <div className="showcaseTop">
+                  <span className="showcaseLabel">{category.name}</span>
                   <span className="showcaseBadge">
-                    {entry.featuredCount > 0 ? `${entry.featuredCount} featured` : `${entry.itemCount} live`}
+                    {featuredCount > 0 ? `${featuredCount} featured` : `${items.length} live`}
                   </span>
-                ) : (
-                  <span className="showcaseBadge mutedBadge">Empty</span>
-                )}
-              </div>
-              <strong>{entry.itemCount} products</strong>
-              <span className="showcasePrice">
-                {entry.itemCount > 0 ? `From ${entry.priceLabel ?? '—'}` : 'Ready for first drop'}
-              </span>
-            </button>
-          ))}
+                </div>
+                <strong>{items.length} products</strong>
+                <span className="showcasePrice">
+                  {items.length > 0 ? `From ${formatCzk(lowestPrice)}` : 'Ready for first drop'}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 

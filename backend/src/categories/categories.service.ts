@@ -41,6 +41,7 @@ export class CategoriesService {
     return this.prisma.category.create({
       data: {
         name: dto.name,
+        ...(dto.featured !== undefined ? { featured: dto.featured } : {}),
       },
     });
   }
@@ -51,6 +52,7 @@ export class CategoriesService {
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.featured !== undefined ? { featured: dto.featured } : {}),
       },
     });
   }

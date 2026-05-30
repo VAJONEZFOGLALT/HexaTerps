@@ -50,6 +50,7 @@ model Device {
 model Category {
   id        Int       @id @default(autoincrement())
   name      String    @unique
+  featured  Boolean   @default(true)
   products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

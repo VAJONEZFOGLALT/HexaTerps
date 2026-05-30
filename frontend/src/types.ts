@@ -1,6 +1,7 @@
 export type Category = {
   id: number;
   name: string;
+  featured: boolean;
 };
 
 export type Cannabinoid = {

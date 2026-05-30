@@ -40,6 +40,11 @@ type DeviceEntry = {
   price: string;
 };
 
+type CategoryDraft = {
+  name: string;
+  featured: boolean;
+};
+
 function createDeviceEntry(deviceCustom = '', price = ''): DeviceEntry {
   return { deviceCustom, price };
 }
@@ -73,6 +78,7 @@ function AdminPanel() {
   const [adminToken, setAdminToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<number, CategoryDraft>>({});
   const [cannabinoids, setCannabinoids] = useState<Cannabinoid[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -95,6 +101,9 @@ function AdminPanel() {
       api.getProducts(),
     ]);
     setCategories(cats);
+    setCategoryDrafts(
+      Object.fromEntries(cats.map((category) => [category.id, { name: category.name, featured: category.featured }])),
+    );
     setCannabinoids(cans);
     setProducts(prods);
   }
@@ -122,6 +131,36 @@ function AdminPanel() {
     setIsAuthenticated(false);
     setEditingProductId(null);
     setForm(defaultForm);
+  }
+
+  function handleCategoryDraftChange(categoryId: number, field: keyof CategoryDraft, value: string | boolean) {
+    setCategoryDrafts((prev) => ({
+      ...prev,
+      [categoryId]: {
+        ...(prev[categoryId] ?? { name: '', featured: true }),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleSaveCategory(category: Category) {
+    const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
+    const name = draft.name.trim();
+
+    if (!name) {
+      setError('Please enter a category name');
+      return;
+    }
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await api.updateCategory(category.id, { name, featured: draft.featured }, adminToken);
+      setSuccess(`✅ Category "${name}" updated.`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update category');
+    }
   }
 
   function resetForm() {
@@ -429,6 +468,48 @@ function AdminPanel() {
       </header>
 
       <main className="admin-main">
+        <section className="admin-categories-section glass">
+          <div className="section-head">
+            <h2>Featured Categories</h2>
+            <span className="section-meta">{categories.filter((category) => category.featured).length} featured</span>
+          </div>
+
+          <div className="category-admin-grid">
+            {categories.map((category) => {
+              const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
+
+              return (
+                <article key={category.id} className="category-admin-card">
+                  <div className="category-admin-head">
+                    <strong>{category.name}</strong>
+                    <label className="category-switch">
+                      <input
+                        type="checkbox"
+                        checked={draft.featured}
+                        onChange={(e) => handleCategoryDraftChange(category.id, 'featured', e.target.checked)}
+                      />
+                      Featured
+                    </label>
+                  </div>
+
+                  <label className="category-field">
+                    <span>Name</span>
+                    <input
+                      type="text"
+                      value={draft.name}
+                      onChange={(e) => handleCategoryDraftChange(category.id, 'name', e.target.value)}
+                    />
+                  </label>
+
+                  <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
+                    Save Category
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         <section className="admin-products-section glass">
           <div className="section-head">
             <h2>Products</h2>

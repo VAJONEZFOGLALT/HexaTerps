@@ -716,6 +716,7 @@
   color: #6e98a8;
   font-size: 12px;
   text-align: center;
+  margin-top: auto;
 }
 
 @keyframes riseIn {

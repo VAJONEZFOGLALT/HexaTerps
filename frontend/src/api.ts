@@ -22,6 +22,17 @@ export const api = {
     return http('/api/categories');
   },
 
+  updateCategory(id: number, payload: { name: string; featured: boolean }, adminToken: string): Promise<Category> {
+    return http(`/api/admin/categories/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
   deleteProduct(id: number, adminToken: string): Promise<{ ok: true }> {
     return http(`/api/admin/products/${id}`, {
       method: 'DELETE',
