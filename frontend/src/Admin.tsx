@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './Admin.css';
 import type { Category, Cannabinoid, Product, Strain } from './types';
-import { api } from './api';
+import { api, buildApiUrl } from './api';
 
 type CannabinoidEntry = {
   cannabinoidId: number | string;
@@ -162,8 +162,8 @@ function AdminPanel() {
 
       const method = editingProductId ? 'PATCH' : 'POST';
       const url = editingProductId
-        ? `http://localhost:3000/api/admin/products/${editingProductId}`
-        : 'http://localhost:3000/api/admin/products';
+        ? buildApiUrl(`/api/admin/products/${editingProductId}`)
+        : buildApiUrl('/api/admin/products');
 
       const response = await fetch(url, {
         method,
@@ -174,9 +174,21 @@ function AdminPanel() {
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: { name?: string; id?: number; message?: string } | null = null;
+      if (responseText) {
+        try {
+          result = JSON.parse(responseText) as { name?: string; id?: number; message?: string };
+        } catch {
+          result = { message: responseText };
+        }
+      }
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to save product');
+        throw new Error(result?.message || responseText || 'Failed to save product');
+      }
+
+      if (!result || typeof result.id !== 'number' || !result.name) {
+        throw new Error('Unexpected empty response from server');
       }
 
       const action = editingProductId ? 'updated' : 'created';

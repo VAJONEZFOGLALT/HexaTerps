@@ -1,9 +1,15 @@
+/// <reference types="vite/client" />
+
 import type { Category, CreateOrderPayload, Order, Product } from './types';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
+export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+export function buildApiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
+  const response = await fetch(buildApiUrl(path), init);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
