@@ -4,6 +4,7 @@ import type { Category, CreateOrderPayload, DeliveryMethod, Product } from './ty
 import { api } from './api';
 import { formatCzk } from './money';
 import { t } from './i18n';
+import AdminPanel from './Admin';
 
 type CartItem = {
   product: Product;
@@ -155,6 +156,11 @@ function App() {
     }
   }
 
+  // Route to admin page if pathname is /admin
+  if (window.location.pathname === '/admin') {
+    return <AdminPanel />;
+  }
+
   return (
     <div className="page">
       <header className="header">
@@ -163,6 +169,9 @@ function App() {
           <div className="tagline">{t('appTagline')}</div>
         </div>
         <div className="headerRight">
+          <a href="/admin" className="admin-link" title="Admin Panel">
+            🛡️
+          </a>
           <div className="cartBadge">{t('cartBadge', { total: formatCzk(cartTotal) })}</div>
         </div>
       </header>

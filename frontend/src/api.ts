@@ -26,6 +26,10 @@ export const api = {
     return http('/api/products/featured');
   },
 
+  getCannabinoids(): Promise<Array<{ id: number; name: string }>> {
+    return http('/api/cannabinoids');
+  },
+
   createOrder(payload: CreateOrderPayload): Promise<Order> {
     return http('/api/orders', {
       method: 'POST',
