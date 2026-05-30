@@ -992,74 +992,86 @@ function AdminPanel() {
 
           <section className="admin-cannabinoids-section glass">
             <div className="section-head">
-              <div>
-                <h2>Cannabinoid Dropdowns</h2>
-                <p className="muted">Rename, delete, create, and reorder the dropdown options used across products.</p>
-              </div>
-              <span className="section-meta">{cannabinoids.length} options</span>
-            </div>
-
-            <div className="cannabinoid-createRow">
-              <input
-                type="text"
-                value={newCannabinoidName}
-                onChange={(e) => setNewCannabinoidName(e.target.value)}
-                placeholder="New cannabinoid, e.g. THCP"
-              />
-              <button type="button" className="btn-small" onClick={() => void handleCreateCannabinoid()}>
-                Add Option
+              <button type="button" className="section-titleButton" onClick={() => toggleSection('cannabinoids')}>
+                <div>
+                  <h2>Cannabinoid Dropdowns</h2>
+                  <p className="muted">Rename, delete, create, and reorder the dropdown options used across products.</p>
+                </div>
+                <span className="section-meta">
+                  {getSectionSummary('cannabinoids', collapsedSections, {
+                    categories: 0,
+                    cannabinoids: cannabinoids.length,
+                    products: 0,
+                  })}
+                </span>
               </button>
             </div>
 
-            <div className="cannabinoid-admin-grid">
-              {cannabinoids.map((cannabinoid, index) => {
-                const draft = cannabinoidDrafts[cannabinoid.id] ?? { name: cannabinoid.name };
+            {!collapsedSections.cannabinoids ? (
+              <>
+                <div className="cannabinoid-createRow">
+                  <input
+                    type="text"
+                    value={newCannabinoidName}
+                    onChange={(e) => setNewCannabinoidName(e.target.value)}
+                    placeholder="New cannabinoid, e.g. THCP"
+                  />
+                  <button type="button" className="btn-small" onClick={() => void handleCreateCannabinoid()}>
+                    Add Option
+                  </button>
+                </div>
 
-                return (
-                  <article key={cannabinoid.id} className="cannabinoid-admin-card">
-                    <div className="cannabinoid-admin-head">
-                      <strong>#{index + 1}</strong>
-                      <div className="cannabinoid-admin-move">
-                        <button
-                          type="button"
-                          className="btn-small"
-                          onClick={() => void handleMoveCannabinoid(cannabinoid.id, -1)}
-                          disabled={index === 0}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-small"
-                          onClick={() => void handleMoveCannabinoid(cannabinoid.id, 1)}
-                          disabled={index === cannabinoids.length - 1}
-                        >
-                          ↓
-                        </button>
-                      </div>
-                    </div>
+                <div className="cannabinoid-admin-grid">
+                  {cannabinoids.map((cannabinoid, index) => {
+                    const draft = cannabinoidDrafts[cannabinoid.id] ?? { name: cannabinoid.name };
 
-                    <label className="category-field">
-                      <span>Name</span>
-                      <input
-                        type="text"
-                        value={draft.name}
-                        onChange={(e) => handleCannabinoidDraftChange(cannabinoid.id, e.target.value)}
-                      />
-                    </label>
+                    return (
+                      <article key={cannabinoid.id} className="cannabinoid-admin-card">
+                        <div className="cannabinoid-admin-head">
+                          <strong>#{index + 1}</strong>
+                          <div className="cannabinoid-admin-move">
+                            <button
+                              type="button"
+                              className="btn-small"
+                              onClick={() => void handleMoveCannabinoid(cannabinoid.id, -1)}
+                              disabled={index === 0}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-small"
+                              onClick={() => void handleMoveCannabinoid(cannabinoid.id, 1)}
+                              disabled={index === cannabinoids.length - 1}
+                            >
+                              ↓
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="cannabinoid-admin-actions">
-                      <button type="button" className="btn-small" onClick={() => void handleSaveCannabinoid(cannabinoid)}>
-                        Save
-                      </button>
-                      <button type="button" className="btn-danger" onClick={() => void handleDeleteCannabinoid(cannabinoid)}>
-                        Delete
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                        <label className="category-field">
+                          <span>Name</span>
+                          <input
+                            type="text"
+                            value={draft.name}
+                            onChange={(e) => handleCannabinoidDraftChange(cannabinoid.id, e.target.value)}
+                          />
+                        </label>
+
+                        <div className="cannabinoid-admin-actions">
+                          <button type="button" className="btn-small" onClick={() => void handleSaveCannabinoid(cannabinoid)}>
+                            Save
+                          </button>
+                          <button type="button" className="btn-danger" onClick={() => void handleDeleteCannabinoid(cannabinoid)}>
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
           </section>
         </div>
 
