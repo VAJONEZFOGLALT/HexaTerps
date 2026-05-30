@@ -2,7 +2,7 @@ type Lang = 'en' | 'cs';
 
 const dict = {
   en: {
-    appTagline: 'MVP webshop • order without registration',
+    appTagline: 'Market shop • order without registration',
     cartBadge: 'Cart: {total}',
     categories: 'Categories',
     all: 'All',
@@ -30,7 +30,7 @@ const dict = {
       'Admin API is protected by token (no registration). For product management use `Authorization: Bearer ADMIN_TOKEN`.',
   },
   cs: {
-    appTagline: 'MVP webshop • objednávka bez registrace',
+    appTagline: 'Market shop • objednávka bez registrace',
     cartBadge: 'Košík: {total}',
     categories: 'Kategorie',
     all: 'Vše',

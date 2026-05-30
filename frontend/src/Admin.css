@@ -104,6 +104,31 @@
   margin: 0 auto;
 }
 
+.admin-shell {
+  width: min(1320px, calc(100% - 32px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) 1px minmax(0, 1.05fr);
+  gap: 18px;
+  padding: 22px 0 36px;
+  align-items: start;
+}
+
+.admin-column {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-divider {
+  width: 1px;
+  align-self: stretch;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+}
+
+.section-head-tight {
+  margin-bottom: 14px;
+}
+
 .admin-header {
   display: flex;
   justify-content: space-between;
@@ -423,6 +448,27 @@
   color: #cbffdf;
 }
 
+.admin-modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  padding: 20px;
+  background: rgba(2, 5, 10, 0.72);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-modal {
+  width: min(100%, 920px);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
+}
+
 .admin-subtitle,
 .tiny {
   margin-top: 6px;
@@ -430,12 +476,26 @@
 }
 
 @media (max-width: 980px) {
-  .admin-main {
+  .admin-shell {
     grid-template-columns: 1fr;
+  }
+
+  .admin-divider {
+    width: 100%;
+    height: 1px;
   }
 
   .category-admin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-modalBackdrop {
+    padding: 12px;
+  }
+
+  .admin-modal {
+    max-height: calc(100vh - 24px);
+    padding: 18px;
   }
 }
 
@@ -461,5 +521,40 @@
   .category-admin-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .section-head,
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-head > * {
+    width: 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-logout,
+  .btn-small,
+  .btn-danger,
+  .mode-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .form-actions,
+  .product-card-actions,
+  .field-mode-toggle {
+    width: 100%;
+  }
+
+  .admin-modalBackdrop {
+    align-items: flex-end;
+  }
+
+  .admin-modal {
+    width: 100%;
+    border-radius: 22px 22px 0 0;
   }
 }

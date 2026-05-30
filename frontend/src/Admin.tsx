@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import './Admin.css';
 import type {
   Category,
@@ -45,6 +45,19 @@ type CategoryDraft = {
   featured: boolean;
 };
 
+type ProductFormSetter = Dispatch<SetStateAction<ProductForm>>;
+
+type ProductEditorFieldsProps = {
+  form: ProductForm;
+  setForm: ProductFormSetter;
+  categories: Category[];
+  cannabinoids: Cannabinoid[];
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  submitLabel: string;
+  onCancel?: () => void;
+  cancelLabel?: string;
+};
+
 function createDeviceEntry(deviceCustom = '', price = ''): DeviceEntry {
   return { deviceCustom, price };
 }
@@ -74,6 +87,312 @@ function formatDeviceEntry(entry: ProductDevice): string {
   return `${entry.device.name} ${entry.price} CZK`;
 }
 
+function getDefaultPercentageForCannabinoid(name?: string) {
+  if (!name) return '';
+  if (name === 'Terpenes') return '5';
+  if (name === 'HHC' || name === 'Δ⁹-THC' || name.toUpperCase().includes('D9')) return '95';
+  return '';
+}
+
+function getDefaultUnitForCannabinoid(): CannabinoidUnit {
+  return 'PERCENT';
+}
+
+function createCannabinoidEntry(
+  cannabinoidId: number | string = '',
+  percentage = '',
+  unit: CannabinoidUnit = 'PERCENT',
+): CannabinoidEntry {
+  return { cannabinoidId, percentage, unit };
+}
+
+function ProductEditorFields({
+  form,
+  setForm,
+  categories,
+  cannabinoids,
+  onSubmit,
+  submitLabel,
+  onCancel,
+  cancelLabel = 'Cancel',
+}: ProductEditorFieldsProps) {
+  function handleAddDevice() {
+    setForm((prev) => ({
+      ...prev,
+      devices: [...prev.devices, createDeviceEntry()],
+    }));
+  }
+
+  function handleRemoveDevice(idx: number) {
+    setForm((prev) => ({
+      ...prev,
+      devices: prev.devices.filter((_, i) => i !== idx),
+    }));
+  }
+
+  function handleDeviceChange(idx: number, field: 'deviceCustom' | 'price', value: string) {
+    setForm((prev) => {
+      const next = [...prev.devices];
+      const current = next[idx] ?? createDeviceEntry();
+      const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
+
+      next[idx] = updated;
+      return { ...prev, devices: next };
+    });
+  }
+
+  function handleAddCannabinoid() {
+    setForm((prev) => ({
+      ...prev,
+      cannabinoids: [...prev.cannabinoids, createCannabinoidEntry()],
+    }));
+  }
+
+  function handleRemoveCannabinoid(idx: number) {
+    setForm((prev) => ({
+      ...prev,
+      cannabinoids: prev.cannabinoids.filter((_, i) => i !== idx),
+    }));
+  }
+
+  function handleCannabinoidChange(idx: number, field: 'cannabinoidId' | 'percentage' | 'unit', value: string) {
+    setForm((prev) => {
+      const next = [...prev.cannabinoids];
+      const current = next[idx] ?? createCannabinoidEntry();
+      const updated: CannabinoidEntry = { ...current, [field]: value } as CannabinoidEntry;
+
+      if (field === 'cannabinoidId') {
+        const selectedId = Number(value);
+        const selected = cannabinoids.find((c) => c.id === selectedId);
+        updated.unit = getDefaultUnitForCannabinoid();
+        if (!updated.percentage) {
+          updated.percentage = getDefaultPercentageForCannabinoid(selected?.name);
+        }
+      }
+
+      next[idx] = updated;
+      return { ...prev, cannabinoids: next };
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="admin-form">
+      <div className="form-group">
+        <label>Product Name</label>
+        <input
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          placeholder="Optional - leave blank to auto-generate"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Category</label>
+        <div className="field-mode-toggle">
+          <button
+            type="button"
+            className={`mode-btn ${form.categoryMode === 'dropdown' ? 'active' : ''}`}
+            onClick={() => setForm((p) => ({ ...p, categoryMode: 'dropdown' }))}
+          >
+            Dropdown
+          </button>
+          <button
+            type="button"
+            className={`mode-btn ${form.categoryMode === 'custom' ? 'active' : ''}`}
+            onClick={() => setForm((p) => ({ ...p, categoryMode: 'custom' }))}
+          >
+            Custom
+          </button>
+        </div>
+        {form.categoryMode === 'dropdown' ? (
+          <select value={form.categoryId} onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}>
+            <option value="">-- Select Category --</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={form.categoryCustom}
+            onChange={(e) => setForm((p) => ({ ...p, categoryCustom: e.target.value }))}
+            placeholder="Enter category name, e.g. Equipment"
+          />
+        )}
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Strain</label>
+          <select value={form.strain} onChange={(e) => setForm((p) => ({ ...p, strain: e.target.value as Strain }))}>
+            <option value="SATIVA">Sativa</option>
+            <option value="INDICA">Indica</option>
+            <option value="HYBRID">Hybrid</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Price (CZK)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.price}
+            onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+            placeholder="299.50"
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Stock</label>
+          <input type="number" min="0" value={form.stock} onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))} />
+        </div>
+      </div>
+
+      <div className="cannabinoids-section">
+        <div className="cannabinoids-header">
+          <div>
+            <h3>Devices</h3>
+            <p className="muted tiny">Add one or more device options and set the price for each one.</p>
+          </div>
+          <button type="button" onClick={handleAddDevice} className="btn-small">
+            + Add Device
+          </button>
+        </div>
+
+        <div className="cannabinoids-list">
+          {form.devices.length === 0 ? (
+            <p className="muted">No devices added</p>
+          ) : (
+            form.devices.map((device, idx) => (
+              <div key={idx} className="cannabinoid-entry">
+                <input
+                  type="text"
+                  value={device.deviceCustom}
+                  onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
+                  placeholder="Enter device name"
+                />
+
+                <input
+                  type="number"
+                  step="0.01"
+                  value={device.price}
+                  onChange={(e) => handleDeviceChange(idx, 'price', e.target.value)}
+                  placeholder="Price"
+                  className="percentage-input"
+                />
+
+                <button type="button" onClick={() => handleRemoveDevice(idx)} className="btn-remove" title="Remove device">
+                  ✕
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>Description</label>
+        <textarea
+          value={form.description}
+          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+          placeholder="Optional description"
+          rows={3}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Flavour</label>
+        <input
+          type="text"
+          value={form.flavour}
+          onChange={(e) => setForm((p) => ({ ...p, flavour: e.target.value }))}
+          placeholder="Optional flavour"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Image URL</label>
+        <input
+          type="text"
+          value={form.image}
+          onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))}
+          placeholder="https://..."
+        />
+      </div>
+
+      <div className="form-group checkbox">
+        <input
+          type="checkbox"
+          checked={form.featured}
+          onChange={(e) => setForm((p) => ({ ...p, featured: e.target.checked }))}
+          id="featured-check"
+        />
+        <label htmlFor="featured-check">Featured</label>
+      </div>
+
+      <div className="cannabinoids-section">
+        <div className="cannabinoids-header">
+          <h3>Cannabinoids</h3>
+          <button type="button" onClick={handleAddCannabinoid} className="btn-small">
+            + Add
+          </button>
+        </div>
+
+        <div className="cannabinoids-list">
+          {form.cannabinoids.length === 0 ? (
+            <p className="muted">No cannabinoids added</p>
+          ) : (
+            form.cannabinoids.map((cann, idx) => (
+              <div key={idx} className="cannabinoid-entry">
+                <select value={cann.cannabinoidId} onChange={(e) => handleCannabinoidChange(idx, 'cannabinoidId', e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {cannabinoids.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  value={cann.percentage}
+                  onChange={(e) => handleCannabinoidChange(idx, 'percentage', e.target.value)}
+                  placeholder="55-65"
+                  className="percentage-input"
+                />
+
+                <select value={cann.unit} onChange={(e) => handleCannabinoidChange(idx, 'unit', e.target.value)} className="unit-input">
+                  <option value="PERCENT">%</option>
+                  <option value="MG">mg</option>
+                </select>
+
+                <button type="button" onClick={() => handleRemoveCannabinoid(idx)} className="btn-remove" title="Remove cannabinoid">
+                  ✕
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="form-actions">
+        <button type="submit" className="btn-primary">
+          {submitLabel}
+        </button>
+        {onCancel ? (
+          <button type="button" className="btn-secondary" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
 function AdminPanel() {
   const [adminToken, setAdminToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -85,6 +404,7 @@ function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
+  const [editForm, setEditForm] = useState<ProductForm>(defaultForm);
 
   useEffect(() => {
     const saved = localStorage.getItem('hexaterps_admin_token');
@@ -131,6 +451,7 @@ function AdminPanel() {
     setIsAuthenticated(false);
     setEditingProductId(null);
     setForm(defaultForm);
+    setEditForm(defaultForm);
   }
 
   function handleCategoryDraftChange(categoryId: number, field: keyof CategoryDraft, value: string | boolean) {
@@ -164,119 +485,38 @@ function AdminPanel() {
   }
 
   function resetForm() {
-    setEditingProductId(null);
-    setError(null);
-    setSuccess(null);
     setForm(defaultForm);
   }
 
-  function getDefaultPercentageForCannabinoid(name?: string) {
-    if (!name) return '';
-    if (name === 'Terpenes') return '5';
-    if (name === 'HHC' || name === 'Δ⁹-THC' || name.toUpperCase().includes('D9')) return '95';
-    return '';
+  function closeEditModal() {
+    setEditingProductId(null);
+    setEditForm(defaultForm);
   }
 
-  function getDefaultUnitForCannabinoid(): CannabinoidUnit {
-    return 'PERCENT';
-  }
-
-  function createCannabinoidEntry(
-    cannabinoidId: number | string = '',
-    percentage = '',
-    unit: CannabinoidUnit = 'PERCENT',
-  ): CannabinoidEntry {
-    return { cannabinoidId, percentage, unit };
-  }
-
-  function handleAddDevice() {
-    setForm((prev) => ({
-      ...prev,
-      devices: [...prev.devices, createDeviceEntry()],
-    }));
-  }
-
-  function handleRemoveDevice(idx: number) {
-    setForm((prev) => ({
-      ...prev,
-      devices: prev.devices.filter((_, i) => i !== idx),
-    }));
-  }
-
-  function handleDeviceChange(idx: number, field: 'deviceCustom' | 'price', value: string) {
-    setForm((prev) => {
-      const next = [...prev.devices];
-      const current = next[idx] ?? createDeviceEntry();
-      const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
-
-      next[idx] = updated;
-      return { ...prev, devices: next };
-    });
-  }
-
-  function handleAddCannabinoid() {
-    setForm((prev) => ({
-      ...prev,
-      cannabinoids: [...prev.cannabinoids, createCannabinoidEntry()],
-    }));
-  }
-
-  function handleRemoveCannabinoid(idx: number) {
-    setForm((prev) => ({
-      ...prev,
-      cannabinoids: prev.cannabinoids.filter((_, i) => i !== idx),
-    }));
-  }
-
-  function handleCannabinoidChange(
-    idx: number,
-    field: 'cannabinoidId' | 'percentage' | 'unit',
-    value: string,
-  ) {
-    setForm((prev) => {
-      const next = [...prev.cannabinoids];
-      const current = next[idx] ?? createCannabinoidEntry();
-      const updated: CannabinoidEntry = { ...current, [field]: value } as CannabinoidEntry;
-
-      if (field === 'cannabinoidId') {
-        const selectedId = Number(value);
-        const selected = cannabinoids.find((c) => c.id === selectedId);
-        updated.unit = getDefaultUnitForCannabinoid();
-        if (!updated.percentage) {
-          updated.percentage = getDefaultPercentageForCannabinoid(selected?.name);
-        }
-      }
-
-      next[idx] = updated;
-      return { ...prev, cannabinoids: next };
-    });
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitProductForm(productForm: ProductForm, productId: number | null) {
     setError(null);
     setSuccess(null);
 
     try {
-      const categoryCustom = form.categoryMode === 'custom' ? form.categoryCustom.trim() : '';
-      const categoryId = form.categoryMode === 'dropdown' ? Number(form.categoryId) : undefined;
+      const categoryCustom = productForm.categoryMode === 'custom' ? productForm.categoryCustom.trim() : '';
+      const categoryId = productForm.categoryMode === 'dropdown' ? Number(productForm.categoryId) : undefined;
 
-      if (!form.price.trim()) {
+      if (!productForm.price.trim()) {
         setError('Please fill in the price');
         return;
       }
 
-      if (form.categoryMode === 'dropdown' && !categoryId) {
+      if (productForm.categoryMode === 'dropdown' && !categoryId) {
         setError('Please select a category');
         return;
       }
 
-      if (form.categoryMode === 'custom' && !categoryCustom) {
+      if (productForm.categoryMode === 'custom' && !categoryCustom) {
         setError('Please enter a custom category name');
         return;
       }
 
-      const normalizedDevices = form.devices
+      const normalizedDevices = productForm.devices
         .map((device) => ({
           deviceCustom: device.deviceCustom.trim(),
           price: device.price.trim(),
@@ -295,17 +535,17 @@ function AdminPanel() {
       }
 
       const payload = {
-        name: form.name.trim() || undefined,
+        name: productForm.name.trim() || undefined,
         categoryId,
         categoryCustom: categoryCustom || undefined,
-        description: form.description.trim() || undefined,
-        strain: form.strain,
-        flavour: form.flavour.trim() || undefined,
-        price: form.price,
-        stock: Number(form.stock) || 0,
-        image: form.image.trim() || undefined,
-        featured: form.featured,
-        cannabinoids: form.cannabinoids
+        description: productForm.description.trim() || undefined,
+        strain: productForm.strain,
+        flavour: productForm.flavour.trim() || undefined,
+        price: productForm.price,
+        stock: Number(productForm.stock) || 0,
+        image: productForm.image.trim() || undefined,
+        featured: productForm.featured,
+        cannabinoids: productForm.cannabinoids
           .filter((c) => c.cannabinoidId && c.percentage.trim())
           .map((c) => ({
             cannabinoidId:
@@ -319,9 +559,9 @@ function AdminPanel() {
         devices: normalizedDevices,
       };
 
-      const method = editingProductId ? 'PATCH' : 'POST';
-      const url = editingProductId
-        ? buildApiUrl(`/api/admin/products/${editingProductId}`)
+      const method = productId ? 'PATCH' : 'POST';
+      const url = productId
+        ? buildApiUrl(`/api/admin/products/${productId}`)
         : buildApiUrl('/api/admin/products');
 
       const response = await fetch(url, {
@@ -353,20 +593,35 @@ function AdminPanel() {
         throw new Error('Unexpected empty response from server');
       }
 
-      const action = editingProductId ? 'updated' : 'created';
+      const action = productId ? 'updated' : 'created';
       setSuccess(`✅ Product "${productResult.name}" ${action}!`);
-      resetForm();
+      if (productId) {
+        closeEditModal();
+      } else {
+        resetForm();
+      }
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     }
   }
 
+  async function handleCreateSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await submitProductForm(form, null);
+  }
+
+  async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingProductId) return;
+    await submitProductForm(editForm, editingProductId);
+  }
+
   function handleEditProduct(product: Product) {
     setEditingProductId(product.id);
     setError(null);
     setSuccess(null);
-    setForm({
+    setEditForm({
       name: product.name,
       categoryId: String(product.categoryId),
       categoryCustom: '',
@@ -423,7 +678,7 @@ function AdminPanel() {
       }
       setSuccess(`🗑️ Product "${product.name}" deleted.`);
       if (editingProductId === product.id) {
-        resetForm();
+        closeEditModal();
       }
       await loadData();
     } catch (e) {
@@ -467,52 +722,83 @@ function AdminPanel() {
         </button>
       </header>
 
-      <main className="admin-main">
-        <section className="admin-categories-section glass">
-          <div className="section-head">
-            <h2>Featured Categories</h2>
-            <span className="section-meta">{categories.filter((category) => category.featured).length} featured</span>
-          </div>
+      <main className="admin-shell">
+        <div className="admin-column admin-column-left">
+          <section className="admin-form-section glass">
+            <div className="section-head">
+              <div>
+                <h2>Create Product</h2>
+                <p className="muted">Build a new market listing with cannabinoids, devices, and pricing.</p>
+              </div>
+              <span className="section-meta">Stock defaults to 99</span>
+            </div>
+            {error && <div className="admin-error">{error}</div>}
+            {success && <div className="admin-success">{success}</div>}
 
-          <div className="category-admin-grid">
-            {categories.map((category) => {
-              const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
+            <ProductEditorFields
+              form={form}
+              setForm={setForm}
+              categories={categories}
+              cannabinoids={cannabinoids}
+              onSubmit={handleCreateSubmit}
+              submitLabel="Create Product"
+            />
+          </section>
 
-              return (
-                <article key={category.id} className="category-admin-card">
-                  <div className="category-admin-head">
-                    <strong>{category.name}</strong>
-                    <label className="category-switch">
+          <section className="admin-categories-section glass">
+            <div className="section-head">
+              <div>
+                <h2>Featured Categories</h2>
+                <p className="muted">Control what shows on the homepage and keep category names tidy.</p>
+              </div>
+              <span className="section-meta">{categories.filter((category) => category.featured).length} featured</span>
+            </div>
+
+            <div className="category-admin-grid">
+              {categories.map((category) => {
+                const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
+
+                return (
+                  <article key={category.id} className="category-admin-card">
+                    <div className="category-admin-head">
+                      <strong>{category.name}</strong>
+                      <label className="category-switch">
+                        <input
+                          type="checkbox"
+                          checked={draft.featured}
+                          onChange={(e) => handleCategoryDraftChange(category.id, 'featured', e.target.checked)}
+                        />
+                        Featured
+                      </label>
+                    </div>
+
+                    <label className="category-field">
+                      <span>Name</span>
                       <input
-                        type="checkbox"
-                        checked={draft.featured}
-                        onChange={(e) => handleCategoryDraftChange(category.id, 'featured', e.target.checked)}
+                        type="text"
+                        value={draft.name}
+                        onChange={(e) => handleCategoryDraftChange(category.id, 'name', e.target.value)}
                       />
-                      Featured
                     </label>
-                  </div>
 
-                  <label className="category-field">
-                    <span>Name</span>
-                    <input
-                      type="text"
-                      value={draft.name}
-                      onChange={(e) => handleCategoryDraftChange(category.id, 'name', e.target.value)}
-                    />
-                  </label>
+                    <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
+                      Save Category
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
 
-                  <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
-                    Save Category
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+        <div className="admin-divider" aria-hidden="true" />
 
         <section className="admin-products-section glass">
-          <div className="section-head">
-            <h2>Products</h2>
+          <div className="section-head section-head-tight">
+            <div>
+              <h2>Products</h2>
+              <p className="muted">Edit opens a modal so the create form stays clean.</p>
+            </div>
             <span className="section-meta">{products.length} total</span>
           </div>
 
@@ -571,259 +857,35 @@ function AdminPanel() {
           )}
         </section>
 
-        <section className="admin-form-section glass">
-          <div className="section-head">
-            <h2>{editingProductId ? 'Edit Product' : 'Add Product'}</h2>
-            <span className="section-meta">Stock defaults to 99</span>
-          </div>
-          {error && <div className="admin-error">{error}</div>}
-          {success && <div className="admin-success">{success}</div>}
-
-          <form onSubmit={handleSubmit} className="admin-form">
-            <div className="form-group">
-              <label>Product Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Optional - leave blank to auto-generate"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Category</label>
-              <div className="field-mode-toggle">
-                <button
-                  type="button"
-                  className={`mode-btn ${form.categoryMode === 'dropdown' ? 'active' : ''}`}
-                  onClick={() => setForm((p) => ({ ...p, categoryMode: 'dropdown' }))}
-                >
-                  Dropdown
-                </button>
-                <button
-                  type="button"
-                  className={`mode-btn ${form.categoryMode === 'custom' ? 'active' : ''}`}
-                  onClick={() => setForm((p) => ({ ...p, categoryMode: 'custom' }))}
-                >
-                  Custom
-                </button>
+      {editingProductId !== null ? (
+        <div className="admin-modalBackdrop" role="presentation" onClick={closeEditModal}>
+          <div className="admin-modal glass" role="dialog" aria-modal="true" aria-label="Edit product" onClick={(e) => e.stopPropagation()}>
+            <div className="section-head">
+              <div>
+                <h2>Edit Product</h2>
+                <p className="muted">Update the listing without losing the create form state.</p>
               </div>
-              {form.categoryMode === 'dropdown' ? (
-                <select
-                  value={form.categoryId}
-                  onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
-                >
-                  <option value="">-- Select Category --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={form.categoryCustom}
-                  onChange={(e) => setForm((p) => ({ ...p, categoryCustom: e.target.value }))}
-                  placeholder="Enter category name, e.g. Equipment"
-                />
-              )}
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Strain</label>
-                <select
-                  value={form.strain}
-                  onChange={(e) => setForm((p) => ({ ...p, strain: e.target.value as Strain }))}
-                >
-                  <option value="SATIVA">Sativa</option>
-                  <option value="INDICA">Indica</option>
-                  <option value="HYBRID">Hybrid</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Price (CZK)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
-                  placeholder="299.50"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Stock</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.stock}
-                  onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="cannabinoids-section">
-              <div className="cannabinoids-header">
-                <div>
-                  <h3>Devices</h3>
-                  <p className="muted tiny">Add one or more device options and set the price for each one.</p>
-                </div>
-                <button type="button" onClick={handleAddDevice} className="btn-small">
-                  + Add Device
-                </button>
-              </div>
-
-              <div className="cannabinoids-list">
-                {form.devices.length === 0 ? (
-                  <p className="muted">No devices added</p>
-                ) : (
-                  form.devices.map((device, idx) => (
-                    <div key={idx} className="cannabinoid-entry">
-                      <input
-                        type="text"
-                        value={device.deviceCustom}
-                        onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
-                        placeholder="Enter device name"
-                      />
-
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={device.price}
-                        onChange={(e) => handleDeviceChange(idx, 'price', e.target.value)}
-                        placeholder="Price"
-                        className="percentage-input"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDevice(idx)}
-                        className="btn-remove"
-                        title="Remove device"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="Optional description"
-                rows={3}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Flavour</label>
-              <input
-                type="text"
-                value={form.flavour}
-                onChange={(e) => setForm((p) => ({ ...p, flavour: e.target.value }))}
-                placeholder="Optional flavour"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Image URL</label>
-              <input
-                type="text"
-                value={form.image}
-                onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))}
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="form-group checkbox">
-              <input
-                type="checkbox"
-                checked={form.featured}
-                onChange={(e) => setForm((p) => ({ ...p, featured: e.target.checked }))}
-                id="featured-check"
-              />
-              <label htmlFor="featured-check">Featured</label>
-            </div>
-
-            <div className="cannabinoids-section">
-              <div className="cannabinoids-header">
-                <h3>Cannabinoids</h3>
-                <button type="button" onClick={handleAddCannabinoid} className="btn-small">
-                  + Add
-                </button>
-              </div>
-
-              <div className="cannabinoids-list">
-                {form.cannabinoids.length === 0 ? (
-                  <p className="muted">No cannabinoids added</p>
-                ) : (
-                  form.cannabinoids.map((cann, idx) => (
-                    <div key={idx} className="cannabinoid-entry">
-                      <select
-                        value={cann.cannabinoidId}
-                        onChange={(e) =>
-                          handleCannabinoidChange(idx, 'cannabinoidId', e.target.value)
-                        }
-                      >
-                        <option value="">-- Select --</option>
-                        {cannabinoids.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <input
-                        type="text"
-                        value={cann.percentage}
-                        onChange={(e) => handleCannabinoidChange(idx, 'percentage', e.target.value)}
-                        placeholder="55-65"
-                        className="percentage-input"
-                      />
-
-                      <select
-                        value={cann.unit}
-                        onChange={(e) => handleCannabinoidChange(idx, 'unit', e.target.value)}
-                        className="unit-input"
-                      >
-                        <option value="PERCENT">%</option>
-                        <option value="MG">mg</option>
-                      </select>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCannabinoid(idx)}
-                        className="btn-remove"
-                        title="Remove cannabinoid"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="btn-primary">
-                {editingProductId ? 'Update Product' : 'Create Product'}
+              <button type="button" className="btn-secondary" onClick={closeEditModal}>
+                Close
               </button>
-              {editingProductId && (
-                <button type="button" className="btn-secondary" onClick={resetForm}>
-                  Cancel Edit
-                </button>
-              )}
             </div>
-          </form>
-        </section>
+
+            {error && <div className="admin-error">{error}</div>}
+            {success && <div className="admin-success">{success}</div>}
+
+            <ProductEditorFields
+              form={editForm}
+              setForm={setEditForm}
+              categories={categories}
+              cannabinoids={cannabinoids}
+              onSubmit={handleEditSubmit}
+              submitLabel="Save Changes"
+              onCancel={closeEditModal}
+              cancelLabel="Cancel Edit"
+            />
+          </div>
+        </div>
+      ) : null}
       </main>
     </div>
   );

@@ -114,10 +114,11 @@ function App() {
 
       <section className="hero">
         <div className="heroCopy">
-          <div className="heroEyebrow">After-hours boutique • cyber palette • smooth motion</div>
-          <h1>HexaTerps drops, styled like a night market.</h1>
+          <div className="heroEyebrow">Market floor • devices • concentrates • edibles • equipment</div>
+          <h1>HexaTerps is a market for modern terpene and cannabinoid goods.</h1>
           <p>
-            A clean landing page with a dark cyber look, featured categories, and no product wall underneath.
+            A clean market homepage for device blends, concentrates, edibles, and equipment, with featured categories
+            up front and no product wall underneath.
           </p>
           <div className="heroActions">
             <button type="button" className="heroButton" onClick={() => setMenuOpen((prev) => !prev)}>
