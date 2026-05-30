@@ -17,12 +17,26 @@ export function parseFrontendOrigins(value: string): string | string[] {
   return origins.length === 1 ? origins[0]! : origins;
 }
 
+function getAllowedFrontendOrigins(value?: string): string[] {
+  const defaults = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://hexa-terps.vercel.app',
+    'https://hexaterps.space',
+    'https://www.hexaterps.space',
+  ];
+
+  const configured = value ? parseFrontendOrigins(value) : [];
+  const list = Array.isArray(configured) ? configured : [configured];
+  return [...new Set([...defaults, ...list].filter(Boolean))];
+}
+
 export async function configureApp(
   app: NestExpressApplication,
 ): Promise<void> {
   const configService = app.get(ConfigService);
   const frontendOrigin = configService.get<string>('FRONTEND_ORIGIN');
-  const allowedOrigins = frontendOrigin ? parseFrontendOrigins(frontendOrigin) : true;
+  const allowedOrigins = getAllowedFrontendOrigins(frontendOrigin);
 
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use(
@@ -63,7 +77,7 @@ export function applyPreflightCors(
     statusCode: number;
     end(): void;
   },
-  allowedOrigins: string | string[],
+  allowedOrigins: string[] | string,
 ): boolean {
   if (req.method !== 'OPTIONS') {
     return false;
@@ -102,15 +116,11 @@ export async function createNestServer(): Promise<express.Express> {
   const server = express();
 
   const frontendOrigin = process.env.FRONTEND_ORIGIN;
-  const allowedOrigins = frontendOrigin ? parseFrontendOrigins(frontendOrigin) : true;
+  const allowedOrigins = getAllowedFrontendOrigins(frontendOrigin);
 
   server.use((req, res, next) => {
     const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
-    const allowed = Array.isArray(allowedOrigins) ? allowedOrigins : [allowedOrigins];
-    const allowAnyOrigin = allowedOrigins === true;
-    if (allowAnyOrigin) {
-      res.setHeader('Access-Control-Allow-Origin', origin ?? '*');
-    } else if (origin && allowed.includes(origin)) {
+    if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
       res.setHeader('Access-Control-Allow-Origin', '*');
