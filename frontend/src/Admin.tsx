@@ -154,7 +154,7 @@ function AdminPanel() {
       if (field === 'cannabinoidId') {
         const selectedId = Number(value);
         const selected = cannabinoids.find((c) => c.id === selectedId);
-        updated.unit = getDefaultUnitForCannabinoid(selected?.name);
+        updated.unit = getDefaultUnitForCannabinoid();
         if (!updated.percentage) {
           updated.percentage = getDefaultPercentageForCannabinoid(selected?.name);
         }
