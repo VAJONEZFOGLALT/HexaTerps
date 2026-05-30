@@ -175,10 +175,10 @@ function AdminPanel() {
       });
 
       const responseText = await response.text();
-      let result: { name?: string; id?: number; message?: string } | null = null;
+      let result: { name?: string; id?: number; message?: string } | Product | null = null;
       if (responseText) {
         try {
-          result = JSON.parse(responseText) as { name?: string; id?: number; message?: string };
+          result = JSON.parse(responseText) as Product;
         } catch {
           result = { message: responseText };
         }
@@ -191,14 +191,16 @@ function AdminPanel() {
         throw new Error('Unexpected empty response from server');
       }
 
+      const savedProduct = result as Product;
+
       const action = editingProductId ? 'updated' : 'created';
-      setSuccess(`✅ Product "${result.name}" ${action}!`);
+      setSuccess(`✅ Product "${savedProduct.name}" ${action}!`);
       resetForm();
       setProducts((prev) => {
         if (editingProductId) {
-          return prev.map((product) => (product.id === result.id ? result : product));
+          return prev.map((product) => (product.id === savedProduct.id ? savedProduct : product));
         }
-        return [result, ...prev];
+        return [savedProduct, ...prev];
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
