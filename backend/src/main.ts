@@ -8,17 +8,15 @@ import {
 } from './bootstrap';
 
 let server: Awaited<ReturnType<typeof createNestServer>> | undefined;
-let allowedOrigins: string | string[] = [
+let allowedOrigins: string[] = [
   'https://hexa-terps.vercel.app',
   'https://www.hexaterps.space',
   'https://hexaterps.space',
 ];
 
-function corsOriginHeader(): string {
-  const list = Array.isArray(allowedOrigins)
-    ? allowedOrigins
-    : [allowedOrigins];
-  return list[0] ?? 'https://hexa-terps.vercel.app';
+function corsOriginHeader(req: IncomingMessage): string {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  return origin ?? '*';
 }
 
 async function bootstrapLocal(): Promise<void> {
@@ -35,10 +33,14 @@ export default async function handler(
     if (!server) {
       const originEnv = process.env.FRONTEND_ORIGIN;
       if (originEnv) {
-        allowedOrigins = parseFrontendOrigins(originEnv);
+        const parsed = parseFrontendOrigins(originEnv);
+        allowedOrigins = Array.isArray(parsed) ? parsed : [parsed];
       }
       server = await createNestServer();
     }
+
+    res.setHeader('Access-Control-Allow-Origin', corsOriginHeader(req));
+    res.setHeader('Vary', 'Origin');
 
     if (applyPreflightCors(req, res, allowedOrigins)) {
       return;
@@ -47,8 +49,8 @@ export default async function handler(
     server(req, res);
   } catch (error) {
     console.error('Handler failed:', error);
-    res.setHeader('Access-Control-Allow-Origin', corsOriginHeader());
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', corsOriginHeader(req));
+    res.setHeader('Vary', 'Origin');
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     res.end(

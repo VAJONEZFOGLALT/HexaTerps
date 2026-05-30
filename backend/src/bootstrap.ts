@@ -86,19 +86,18 @@ export function applyPreflightCors(
   const list = Array.isArray(allowedOrigins)
     ? allowedOrigins
     : [allowedOrigins];
-  if (origin && list.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader(
-      'Access-Control-Allow-Methods',
-      'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    );
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Admin-Token',
-    );
-    res.setHeader('Access-Control-Max-Age', '86400');
-  }
+  const headerOrigin = origin && list.includes(origin) ? origin : (origin ?? '*');
+  res.setHeader('Access-Control-Allow-Origin', headerOrigin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Admin-Token',
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.statusCode = 204;
   res.end();
   return true;
