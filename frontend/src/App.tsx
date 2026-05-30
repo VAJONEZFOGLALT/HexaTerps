@@ -52,7 +52,7 @@ function App() {
     'D9/D9+Other cannabinoids blends',
     'Edibles',
     'Concentrates',
-    'Hardware',
+    'Equipment',
   ];
 
   const orderedCategories = useMemo(() => {

@@ -13,7 +13,7 @@ const CANONICAL_CATEGORIES = [
   'D9/D9+Other cannabinoids blends',
   'Edibles',
   'Concentrates',
-  'Hardware',
+  'Equipment',
 ] as const;
 
 const BASE_CANNABINOIDS = [

@@ -15,7 +15,7 @@ export class CategoriesService {
     'D9/D9+Other cannabinoids blends',
     'Edibles',
     'Concentrates',
-    'Hardware',
+    'Equipment',
   ];
 
   async findAll() {

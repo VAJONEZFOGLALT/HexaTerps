@@ -46,9 +46,37 @@ async function main() {
   const categories = await prisma.category.findMany({ include: { products: true } });
   console.log(`Found ${categories.length} categories`);
 
-  const removableCategories = new Set(['Equipment', 'Uncategorized', 'Minor cannabinoids blends']);
+  const removableCategories = new Set(['Uncategorized', 'Minor cannabinoids blends']);
 
   for (const cat of categories) {
+    if (cat.name === 'Hardware') {
+      console.log(`Category 'Hardware' -> mapped to 'Equipment' (products: ${cat.products.length})`);
+      if (dryRun) continue;
+
+      const target = await prisma.category.upsert({
+        where: { name: 'Equipment' },
+        update: {},
+        create: { name: 'Equipment' },
+      });
+
+      const res = await prisma.product.updateMany({
+        where: { categoryId: cat.id },
+        data: { categoryId: target.id },
+      });
+
+      console.log(`  Moved ${res.count} products to category id ${target.id} ('${target.name}')`);
+
+      const remaining = await prisma.product.count({ where: { categoryId: cat.id } });
+      if (remaining === 0) {
+        try {
+          await prisma.category.delete({ where: { id: cat.id } });
+          console.log(`  Deleted empty category '${cat.name}'`);
+        } catch (e) {
+          console.warn(`  Could not delete category '${cat.name}': ${e}`);
+        }
+      }
+      continue;
+    }
     if (removableCategories.has(cat.name) && cat.products.length === 0) {
       console.log(`Deleting empty category '${cat.name}'`);
       if (!dryRun) {

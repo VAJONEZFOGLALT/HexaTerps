@@ -296,27 +296,6 @@ function AdminPanel() {
     });
   }
 
-  function handleAddHardware(product: Product) {
-    const hardwareCategory = categories.find((category) => category.name === 'Hardware');
-    setEditingProductId(null);
-    setError(null);
-    setSuccess(null);
-    setForm({
-      name: product.name ? `${product.name} Hardware` : 'Hardware',
-      categoryId: hardwareCategory ? String(hardwareCategory.id) : '',
-      categoryCustom: hardwareCategory ? '' : 'Hardware',
-      categoryMode: hardwareCategory ? 'dropdown' : 'custom',
-      strain: product.strain,
-      description: product.description ?? '',
-      flavour: product.flavour ?? '',
-      price: product.price,
-      stock: String(product.stock),
-      image: product.image ?? '',
-      featured: product.featured,
-      cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
-    });
-  }
-
   async function handleDeleteProduct(product: Product) {
     const confirmed = window.confirm(`Delete product "${product.name}"?`);
     if (!confirmed) return;
@@ -421,9 +400,6 @@ function AdminPanel() {
                       <button type="button" className="btn-small" onClick={() => handleCloneProduct(product)}>
                         Clone
                       </button>
-                      <button type="button" className="btn-small" onClick={() => handleAddHardware(product)}>
-                        Add Hardware
-                      </button>
                       <button type="button" className="btn-danger" onClick={() => void handleDeleteProduct(product)}>
                         Delete
                       </button>
@@ -489,7 +465,7 @@ function AdminPanel() {
                   type="text"
                   value={form.categoryCustom}
                   onChange={(e) => setForm((p) => ({ ...p, categoryCustom: e.target.value }))}
-                  placeholder="Enter category name, e.g. Hardware"
+                  placeholder="Enter category name, e.g. Equipment"
                 />
               )}
             </div>
