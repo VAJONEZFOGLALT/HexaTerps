@@ -175,23 +175,24 @@ function AdminPanel() {
       });
 
       const responseText = await response.text();
-      let result: { name?: string; id?: number; message?: string } | Product | null = null;
+      let productResult: Product | null = null;
+      let errorResult: { message?: string } | null = null;
       if (responseText) {
         try {
-          result = JSON.parse(responseText) as Product;
+          productResult = JSON.parse(responseText) as Product;
         } catch {
-          result = { message: responseText };
+          errorResult = { message: responseText };
         }
       }
       if (!response.ok) {
-        throw new Error(result?.message || responseText || 'Failed to save product');
+        throw new Error(errorResult?.message || responseText || 'Failed to save product');
       }
 
-      if (!result || typeof result.id !== 'number' || !result.name) {
+      if (!productResult || typeof productResult.id !== 'number' || !productResult.name) {
         throw new Error('Unexpected empty response from server');
       }
 
-      const savedProduct = result as Product;
+      const savedProduct = productResult;
 
       const action = editingProductId ? 'updated' : 'created';
       setSuccess(`✅ Product "${savedProduct.name}" ${action}!`);
