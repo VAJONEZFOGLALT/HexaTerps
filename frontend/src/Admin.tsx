@@ -64,6 +64,10 @@ type ProductEditorFieldsProps = {
   cancelLabel?: string;
 };
 
+type AdminSectionKey = 'createProduct' | 'categories' | 'cannabinoids' | 'products';
+
+const adminSectionStorageKey = 'hexaterps_admin_collapsed_sections';
+
 function createDeviceEntry(deviceCustom = '', price = ''): DeviceEntry {
   return { deviceCustom, price };
 }
@@ -113,6 +117,50 @@ function createCannabinoidEntry(
   return { cannabinoidId, percentage, unit };
 }
 
+function readCollapsedSections(): Record<AdminSectionKey, boolean> {
+  const fallback = {
+    createProduct: false,
+    categories: false,
+    cannabinoids: true,
+    products: false,
+  } satisfies Record<AdminSectionKey, boolean>;
+
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = localStorage.getItem(adminSectionStorageKey);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<Record<AdminSectionKey, boolean>>;
+    return {
+      createProduct: parsed.createProduct ?? fallback.createProduct,
+      categories: parsed.categories ?? fallback.categories,
+      cannabinoids: parsed.cannabinoids ?? fallback.cannabinoids,
+      products: parsed.products ?? fallback.products,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function getSectionSummary(section: AdminSectionKey, collapsedSections: Record<AdminSectionKey, boolean>, counts: {
+  categories: number;
+  cannabinoids: number;
+  products: number;
+}) {
+  if (collapsedSections[section]) return 'Open';
+
+  switch (section) {
+    case 'createProduct':
+      return 'Hide';
+    case 'categories':
+      return `${counts.categories} featured`;
+    case 'cannabinoids':
+      return `${counts.cannabinoids} options`;
+    case 'products':
+      return `${counts.products} total`;
+  }
+}
+
 function ProductEditorFields({
   form,
   setForm,
@@ -156,11 +204,7 @@ function ProductEditorFields({
   function handleRemoveDevice(idx: number) {
     setForm((prev) => ({
       ...prev,
-      devices: (() => {
-        const next = prev.devices.filter((_, i) => i !== idx);
-        return next.length > 0 ? next : [createDeviceEntry()];
-      })(),
-      price: hasHardwarePricing ? prev.devices.filter((_, i) => i !== idx)[0]?.price ?? prev.price : prev.price,
+      devices: prev.devices.filter((_, i) => i !== idx),
     }));
   }
 
@@ -171,11 +215,7 @@ function ProductEditorFields({
       const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
 
       next[idx] = updated;
-      return {
-        ...prev,
-        devices: next,
-        price: hasHardwarePricing && idx === 0 && field === 'price' ? value : prev.price,
-      };
+      return { ...prev, devices: next };
     });
   }
 
@@ -434,6 +474,7 @@ function AdminPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
   const [editForm, setEditForm] = useState<ProductForm>(defaultForm);
+  const [collapsedSections, setCollapsedSections] = useState<Record<AdminSectionKey, boolean>>(readCollapsedSections);
 
   useEffect(() => {
     const saved = localStorage.getItem('hexaterps_admin_token');
@@ -465,6 +506,21 @@ function AdminPanel() {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     });
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(adminSectionStorageKey, JSON.stringify(collapsedSections));
+    } catch {
+      // ignore storage errors
+    }
+  }, [collapsedSections]);
+
+  function toggleSection(section: AdminSectionKey) {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  }
 
   function handleLogin() {
     if (!adminToken) {
@@ -854,68 +910,84 @@ function AdminPanel() {
         <div className="admin-column admin-column-left">
           <section className="admin-form-section glass">
             <div className="section-head">
-              <div>
-                <h2>Create Product</h2>
-                <p className="muted">Build a new market listing with cannabinoids, devices, and pricing.</p>
-              </div>
-              <span className="section-meta">Stock defaults to 99</span>
+              <button type="button" className="section-titleButton" onClick={() => toggleSection('createProduct')}>
+                <div>
+                  <h2>Create Product</h2>
+                  <p className="muted">Build a new market listing with cannabinoids, devices, and pricing.</p>
+                </div>
+                <span className="section-meta">{getSectionSummary('createProduct', collapsedSections, { categories: 0, cannabinoids: 0, products: 0 })}</span>
+              </button>
             </div>
-            {error && <div className="admin-error">{error}</div>}
-            {success && <div className="admin-success">{success}</div>}
+            {!collapsedSections.createProduct ? (
+              <>
+                {error && <div className="admin-error">{error}</div>}
+                {success && <div className="admin-success">{success}</div>}
 
-            <ProductEditorFields
-              form={form}
-              setForm={setForm}
-              categories={categories}
-              cannabinoids={cannabinoids}
-              onSubmit={handleCreateSubmit}
-              submitLabel="Create Product"
-            />
+                <ProductEditorFields
+                  form={form}
+                  setForm={setForm}
+                  categories={categories}
+                  cannabinoids={cannabinoids}
+                  onSubmit={handleCreateSubmit}
+                  submitLabel="Create Product"
+                />
+              </>
+            ) : null}
           </section>
 
           <section className="admin-categories-section glass">
             <div className="section-head">
-              <div>
-                <h2>Featured Categories</h2>
-                <p className="muted">Control what shows on the homepage and keep category names tidy.</p>
-              </div>
-              <span className="section-meta">{categories.filter((category) => category.featured).length} featured</span>
+              <button type="button" className="section-titleButton" onClick={() => toggleSection('categories')}>
+                <div>
+                  <h2>Featured Categories</h2>
+                  <p className="muted">Control what shows on the homepage and keep category names tidy.</p>
+                </div>
+                <span className="section-meta">
+                  {getSectionSummary('categories', collapsedSections, {
+                    categories: categories.filter((category) => category.featured).length,
+                    cannabinoids: 0,
+                    products: 0,
+                  })}
+                </span>
+              </button>
             </div>
 
-            <div className="category-admin-grid">
-              {categories.map((category) => {
-                const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
+            {!collapsedSections.categories ? (
+              <div className="category-admin-grid">
+                {categories.map((category) => {
+                  const draft = categoryDrafts[category.id] ?? { name: category.name, featured: category.featured };
 
-                return (
-                  <article key={category.id} className="category-admin-card">
-                    <div className="category-admin-head">
-                      <strong>{category.name}</strong>
-                      <label className="category-switch">
+                  return (
+                    <article key={category.id} className="category-admin-card">
+                      <div className="category-admin-head">
+                        <strong>{category.name}</strong>
+                        <label className="category-switch">
+                          <input
+                            type="checkbox"
+                            checked={draft.featured}
+                            onChange={(e) => handleCategoryDraftChange(category.id, 'featured', e.target.checked)}
+                          />
+                          Featured
+                        </label>
+                      </div>
+
+                      <label className="category-field">
+                        <span>Name</span>
                         <input
-                          type="checkbox"
-                          checked={draft.featured}
-                          onChange={(e) => handleCategoryDraftChange(category.id, 'featured', e.target.checked)}
+                          type="text"
+                          value={draft.name}
+                          onChange={(e) => handleCategoryDraftChange(category.id, 'name', e.target.value)}
                         />
-                        Featured
                       </label>
-                    </div>
 
-                    <label className="category-field">
-                      <span>Name</span>
-                      <input
-                        type="text"
-                        value={draft.name}
-                        onChange={(e) => handleCategoryDraftChange(category.id, 'name', e.target.value)}
-                      />
-                    </label>
-
-                    <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
-                      Save Category
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
+                      <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
+                        Save Category
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : null}
           </section>
 
           <section className="admin-cannabinoids-section glass">
@@ -995,66 +1067,76 @@ function AdminPanel() {
 
         <section className="admin-products-section glass">
           <div className="section-head section-head-tight">
-            <div>
-              <h2>Products</h2>
-              <p className="muted">Edit opens a modal so the create form stays clean.</p>
-            </div>
-            <span className="section-meta">{products.length} total</span>
+            <button type="button" className="section-titleButton" onClick={() => toggleSection('products')}>
+              <div>
+                <h2>Products</h2>
+                <p className="muted">Edit opens a modal so the create form stays clean.</p>
+              </div>
+              <span className="section-meta">
+                {getSectionSummary('products', collapsedSections, {
+                  categories: 0,
+                  cannabinoids: 0,
+                  products: products.length,
+                })}
+              </span>
+            </button>
           </div>
 
-          {products.length === 0 ? (
-            <p className="muted">No products available yet.</p>
-          ) : (
-            <div className="product-grid">
-              {products.map((product) => {
-                const cannabinoidText = product.cannabinoids.map(formatCannabinoidEntry).join(' • ');
-                const deviceText = product.devices.map(formatDeviceEntry).join(' • ');
+          {!collapsedSections.products ? (
+            products.length === 0 ? (
+              <p className="muted">No products available yet.</p>
+            ) : (
+              <div className="product-grid">
+                {products.map((product) => {
+                  const cannabinoidText = product.cannabinoids.map(formatCannabinoidEntry).join(' • ');
+                  const deviceText = product.devices.map(formatDeviceEntry).join(' • ');
 
-                return (
-                  <article key={product.id} className="product-card">
-                    <div className="product-card-top">
-                      <div>
-                        <strong>{product.name}</strong>
-                        <div className="muted tiny">{product.category?.name}</div>
+                  return (
+                    <article key={product.id} className="product-card">
+                      <div className="product-card-top">
+                        <div>
+                          <strong>{product.name}</strong>
+                          <div className="muted tiny">{product.category?.name}</div>
+                        </div>
+                        {product.featured ? <span className="badge strong">Featured</span> : null}
                       </div>
-                      {product.featured ? <span className="badge strong">Featured</span> : null}
-                    </div>
 
-                    <div className="product-card-body">
-                      {cannabinoidText ? (
-                        <div className="muted"><strong>Composition:</strong> {cannabinoidText}</div>
-                      ) : (
-                        <div className="muted"><strong>Composition:</strong> none</div>
-                      )}
-                      {product.flavour ? (
-                        <div className="muted"><strong>Flavour:</strong> {product.flavour}</div>
-                      ) : null}
-                      <div className="muted">
-                        <strong>Hardware:</strong> {deviceText || 'none'}
+                      <div className="product-card-body">
+                        {cannabinoidText ? (
+                          <div className="muted"><strong>Composition:</strong> {cannabinoidText}</div>
+                        ) : (
+                          <div className="muted"><strong>Composition:</strong> none</div>
+                        )}
+                        {product.flavour ? (
+                          <div className="muted"><strong>Flavour:</strong> {product.flavour}</div>
+                        ) : null}
+                        <div className="muted">
+                          <strong>Hardware:</strong> {deviceText || 'none'}
+                        </div>
+                        <div className="product-card-defaults">
+                          <span>Strain: {product.strain}</span>
+                          <span>Price: {product.price} CZK</span>
+                          <span>Stock: {product.stock}</span>
+                        </div>
                       </div>
-                      <div className="product-card-defaults">
-                        <span>Strain: {product.strain}</span>
-                        <span>Price: {product.price} CZK</span>
-                        <span>Stock: {product.stock}</span>
-                      </div>
-                    </div>
 
-                    <div className="product-card-actions">
-                      <button type="button" className="btn-small" onClick={() => handleEditProduct(product)}>
-                        Edit
-                      </button>
-                      <button type="button" className="btn-small" onClick={() => handleCloneProduct(product)}>
-                        Clone
-                      </button>
-                      <button type="button" className="btn-danger" onClick={() => void handleDeleteProduct(product)}>
-                        Delete
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+                      <div className="product-card-actions">
+                        <button type="button" className="btn-small" onClick={() => handleEditProduct(product)}>
+                          Edit
+                        </button>
+                        <button type="button" className="btn-small" onClick={() => handleCloneProduct(product)}>
+                          Clone
+                        </button>
+                        <button type="button" className="btn-danger" onClick={() => void handleDeleteProduct(product)}>
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )
+          ) : null}
         </section>
 
       {editingProductId !== null ? (

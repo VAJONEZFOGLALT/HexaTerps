@@ -184,6 +184,25 @@
   margin-bottom: 18px;
 }
 
+.section-titleButton {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.section-titleButton h2,
+.section-titleButton p {
+  pointer-events: none;
+}
+
 .section-meta {
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -204,7 +223,7 @@
 .category-admin-card {
   display: grid;
   gap: 12px;
-  padding: 18px;
+  padding: 14px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -260,7 +279,7 @@
 .cannabinoid-admin-card {
   display: grid;
   gap: 12px;
-  padding: 18px;
+  padding: 14px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -287,7 +306,7 @@
 .product-card {
   display: grid;
   gap: 14px;
-  padding: 18px;
+  padding: 14px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -316,6 +335,24 @@
   gap: 10px 14px;
   color: rgba(233, 239, 255, 0.82);
   font-size: 0.92rem;
+}
+
+.product-card-top strong {
+  font-size: 1rem;
+}
+
+.product-card-body,
+.cannabinoid-admin-actions,
+.form-actions,
+.product-card-actions {
+  gap: 8px;
+}
+
+.admin-products-section,
+.admin-form-section,
+.admin-categories-section,
+.admin-cannabinoids-section {
+  padding: 18px;
 }
 
 .product-card-actions,
@@ -594,6 +631,11 @@
 
   .section-head,
   .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-titleButton {
     flex-direction: column;
     align-items: stretch;
   }
