@@ -85,6 +85,7 @@ model Product {
 model Cannabinoid {
   id        Int                   @id @default(autoincrement())
   name      String                @unique
+  position  Int                   @default(0)
   products  ProductCannabinoid[]
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt

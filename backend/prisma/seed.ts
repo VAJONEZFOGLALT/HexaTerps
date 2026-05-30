@@ -45,11 +45,13 @@ export async function seedCanonicalData(client: PrismaClient = prisma) {
   }
 
   // Create base cannabinoids if they don't exist
-  for (const name of BASE_CANNABINOIDS) {
+  for (const [position, name] of BASE_CANNABINOIDS.entries()) {
     const existing = await client.cannabinoid.findUnique({ where: { name } });
     if (!existing) {
-      await client.cannabinoid.create({ data: { name } });
+      await client.cannabinoid.create({ data: { name, position } });
       console.log(`Created cannabinoid: ${name}`);
+    } else if (existing.position !== position) {
+      await client.cannabinoid.update({ where: { name }, data: { position } });
     }
   }
 

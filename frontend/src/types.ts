@@ -7,6 +7,7 @@ export type Category = {
 export type Cannabinoid = {
   id: number;
   name: string;
+  position: number;
 };
 
 export type Device = {

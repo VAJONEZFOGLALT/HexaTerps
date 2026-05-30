@@ -36,7 +36,9 @@
 .admin-card h1,
 .admin-header h1,
 .admin-form-section h2,
-.admin-products-section h2 {
+.admin-products-section h2,
+.admin-categories-section h2,
+.admin-cannabinoids-section h2 {
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -169,6 +171,11 @@
   padding: 24px;
 }
 
+.admin-cannabinoids-section {
+  border-radius: 24px;
+  padding: 24px;
+}
+
 .section-head {
   display: flex;
   justify-content: space-between;
@@ -236,6 +243,45 @@
 .category-field span {
   margin: 0;
   font-size: 0.92rem;
+}
+
+.cannabinoid-createRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cannabinoid-admin-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.cannabinoid-admin-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cannabinoid-admin-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.cannabinoid-admin-move {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.cannabinoid-admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .product-card {
@@ -501,6 +547,10 @@
     grid-template-columns: 1fr;
   }
 
+  .cannabinoid-createRow {
+    grid-template-columns: 1fr;
+  }
+
   .admin-modalBackdrop {
     padding: 12px;
   }
@@ -533,6 +583,13 @@
   .category-admin-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .cannabinoid-admin-head,
+  .cannabinoid-admin-actions,
+  .cannabinoid-createRow {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .section-head,

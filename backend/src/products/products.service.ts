@@ -9,17 +9,17 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly productInclude = {
+  private readonly productInclude: Prisma.ProductInclude = {
     category: true,
     cannabinoids: {
       include: { cannabinoid: true },
-      orderBy: { cannabinoid: { name: 'asc' } },
+      orderBy: [{ cannabinoid: { position: 'asc' } }, { cannabinoid: { name: 'asc' } }],
     },
     devices: {
       include: { device: true },
       orderBy: { device: { name: 'asc' } },
     },
-  } as const;
+  };
 
   private async resolveCategoryId(categoryId?: number, categoryCustom?: string): Promise<number> {
     if (categoryId) {

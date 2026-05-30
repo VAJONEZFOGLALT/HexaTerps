@@ -12,6 +12,7 @@ import { AdminGuard } from '../admin/admin.guard';
 import { CannabinoidsService } from './cannabinoids.service';
 import { CreateCannabinoidDto } from './dto/create-cannabinoid.dto';
 import { UpdateCannabinoidDto } from './dto/update-cannabinoid.dto';
+import { ReorderCannabinoidsDto } from './dto/reorder-cannabinoids.dto';
 
 @UseGuards(AdminGuard)
 @Controller('api/admin/cannabinoids')
@@ -29,6 +30,11 @@ export class AdminCannabinoidsController {
     @Body() dto: UpdateCannabinoidDto,
   ) {
     return this.cannabinoidsService.update(id, dto);
+  }
+
+  @Patch('reorder')
+  reorder(@Body() dto: ReorderCannabinoidsDto) {
+    return this.cannabinoidsService.reorder(dto.orderedIds);
   }
 
   @Delete(':id')

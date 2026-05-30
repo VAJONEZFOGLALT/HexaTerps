@@ -47,6 +47,10 @@ type CategoryDraft = {
   featured: boolean;
 };
 
+type CannabinoidDraft = {
+  name: string;
+};
+
 type ProductFormSetter = Dispatch<SetStateAction<ProductForm>>;
 
 type ProductEditorFieldsProps = {
@@ -422,6 +426,8 @@ function AdminPanel() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryDrafts, setCategoryDrafts] = useState<Record<number, CategoryDraft>>({});
   const [cannabinoids, setCannabinoids] = useState<Cannabinoid[]>([]);
+  const [cannabinoidDrafts, setCannabinoidDrafts] = useState<Record<number, CannabinoidDraft>>({});
+  const [newCannabinoidName, setNewCannabinoidName] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -447,6 +453,7 @@ function AdminPanel() {
     setCategoryDrafts(
       Object.fromEntries(cats.map((category) => [category.id, { name: category.name, featured: category.featured }])),
     );
+    setCannabinoidDrafts(Object.fromEntries(cans.map((cannabinoid) => [cannabinoid.id, { name: cannabinoid.name }])));
     setCannabinoids(cans);
     setProducts(prods);
   }
@@ -504,6 +511,89 @@ function AdminPanel() {
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update category');
+    }
+  }
+
+  function handleCannabinoidDraftChange(cannabinoidId: number, value: string) {
+    setCannabinoidDrafts((prev) => ({
+      ...prev,
+      [cannabinoidId]: { name: value },
+    }));
+  }
+
+  async function handleSaveCannabinoid(cannabinoid: Cannabinoid) {
+    const draft = cannabinoidDrafts[cannabinoid.id] ?? { name: cannabinoid.name };
+    const name = draft.name.trim();
+
+    if (!name) {
+      setError('Please enter a cannabinoid name');
+      return;
+    }
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await api.updateCannabinoid(cannabinoid.id, { name }, adminToken);
+      setSuccess(`✅ Cannabinoid "${name}" updated.`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update cannabinoid');
+    }
+  }
+
+  async function handleCreateCannabinoid() {
+    const name = newCannabinoidName.trim();
+    if (!name) {
+      setError('Please enter a cannabinoid name');
+      return;
+    }
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await api.createCannabinoid({ name }, adminToken);
+      setNewCannabinoidName('');
+      setSuccess(`✅ Cannabinoid "${name}" created.`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create cannabinoid');
+    }
+  }
+
+  async function handleDeleteCannabinoid(cannabinoid: Cannabinoid) {
+    const confirmed = window.confirm(`Delete cannabinoid "${cannabinoid.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await api.deleteCannabinoid(cannabinoid.id, adminToken);
+      setSuccess(`🗑️ Cannabinoid "${cannabinoid.name}" deleted.`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete cannabinoid');
+    }
+  }
+
+  async function handleMoveCannabinoid(cannabinoidId: number, direction: -1 | 1) {
+    const currentIndex = cannabinoids.findIndex((cannabinoid) => cannabinoid.id === cannabinoidId);
+    const targetIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= cannabinoids.length) {
+      return;
+    }
+
+    const nextOrder = [...cannabinoids];
+    [nextOrder[currentIndex], nextOrder[targetIndex]] = [nextOrder[targetIndex], nextOrder[currentIndex]];
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await api.reorderCannabinoids(nextOrder.map((cannabinoid) => cannabinoid.id), adminToken);
+      setSuccess('✅ Cannabinoid order updated.');
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reorder cannabinoids');
     }
   }
 
@@ -822,6 +912,78 @@ function AdminPanel() {
                     <button type="button" className="btn-small" onClick={() => void handleSaveCategory(category)}>
                       Save Category
                     </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="admin-cannabinoids-section glass">
+            <div className="section-head">
+              <div>
+                <h2>Cannabinoid Dropdowns</h2>
+                <p className="muted">Rename, delete, create, and reorder the dropdown options used across products.</p>
+              </div>
+              <span className="section-meta">{cannabinoids.length} options</span>
+            </div>
+
+            <div className="cannabinoid-createRow">
+              <input
+                type="text"
+                value={newCannabinoidName}
+                onChange={(e) => setNewCannabinoidName(e.target.value)}
+                placeholder="New cannabinoid, e.g. THCP"
+              />
+              <button type="button" className="btn-small" onClick={() => void handleCreateCannabinoid()}>
+                Add Option
+              </button>
+            </div>
+
+            <div className="cannabinoid-admin-grid">
+              {cannabinoids.map((cannabinoid, index) => {
+                const draft = cannabinoidDrafts[cannabinoid.id] ?? { name: cannabinoid.name };
+
+                return (
+                  <article key={cannabinoid.id} className="cannabinoid-admin-card">
+                    <div className="cannabinoid-admin-head">
+                      <strong>#{index + 1}</strong>
+                      <div className="cannabinoid-admin-move">
+                        <button
+                          type="button"
+                          className="btn-small"
+                          onClick={() => void handleMoveCannabinoid(cannabinoid.id, -1)}
+                          disabled={index === 0}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-small"
+                          onClick={() => void handleMoveCannabinoid(cannabinoid.id, 1)}
+                          disabled={index === cannabinoids.length - 1}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className="category-field">
+                      <span>Name</span>
+                      <input
+                        type="text"
+                        value={draft.name}
+                        onChange={(e) => handleCannabinoidDraftChange(cannabinoid.id, e.target.value)}
+                      />
+                    </label>
+
+                    <div className="cannabinoid-admin-actions">
+                      <button type="button" className="btn-small" onClick={() => void handleSaveCannabinoid(cannabinoid)}>
+                        Save
+                      </button>
+                      <button type="button" className="btn-danger" onClick={() => void handleDeleteCannabinoid(cannabinoid)}>
+                        Delete
+                      </button>
+                    </div>
                   </article>
                 );
               })}

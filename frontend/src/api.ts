@@ -1,4 +1,4 @@
-import type { Category, CreateOrderPayload, Device, Order, Product } from './types';
+import type { Cannabinoid, Category, CreateOrderPayload, Device, Order, Product } from './types';
 
 export const API_BASE = (window as any).__API_BASE_URL__ ?? '';
 
@@ -51,8 +51,55 @@ export const api = {
     return http('/api/products/featured');
   },
 
-  getCannabinoids(): Promise<Array<{ id: number; name: string }>> {
+  getCannabinoids(): Promise<Cannabinoid[]> {
     return http('/api/cannabinoids');
+  },
+
+  createCannabinoid(payload: { name: string; position?: number }, adminToken: string): Promise<Cannabinoid> {
+    return http('/api/admin/cannabinoids', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateCannabinoid(
+    id: number,
+    payload: { name?: string; position?: number },
+    adminToken: string,
+  ): Promise<Cannabinoid> {
+    return http(`/api/admin/cannabinoids/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteCannabinoid(id: number, adminToken: string): Promise<Cannabinoid> {
+    return http(`/api/admin/cannabinoids/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+    });
+  },
+
+  reorderCannabinoids(orderedIds: number[], adminToken: string): Promise<Cannabinoid[]> {
+    return http('/api/admin/cannabinoids/reorder', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken,
+      },
+      body: JSON.stringify({ orderedIds }),
+    });
   },
 
   getDevices(): Promise<Device[]> {
