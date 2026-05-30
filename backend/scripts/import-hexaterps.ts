@@ -2,35 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import dotenv from 'dotenv';
-import { PrismaClient, Prisma, Strain } from '@prisma/client';
-import * as cheerio from 'cheerio';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { parseHtml, mapCategory, ParsedProduct } from './catalog-utils';
 
 dotenv.config();
-
-type ParsedVariant = {
-  variantName: string;
-  priceCzk: number;
-};
-
-type ParsedProduct = {
-  categoryTitle: string;
-  baseName: string;
-  image: string | null;
-  description: string;
-  strain: Strain;
-  featured: boolean;
-  available: boolean;
-  variants: ParsedVariant[];
-  cannabinoids: Array<{ name: string; percentage: string }>;
-  fallbackPriceCzk: number | null;
-  rawText: string;
-};
-
-type ParsedCannabinoid = {
-  name: string;
-  percentage: string;
-  type: 'base' | 'terpenes' | 'minor' | 'other';
-};
 
 function getArg(name: string): string | undefined {
   const idx = process.argv.indexOf(name);
@@ -40,14 +15,6 @@ function getArg(name: string): string | undefined {
 
 function hasFlag(name: string): boolean {
   return process.argv.includes(name);
-}
-
-function normalizeStrain(text: string): Strain {
-  const t = text.toLowerCase();
-  if (t.includes('sativa')) return 'SATIVA';
-  if (t.includes('indica')) return 'INDICA';
-  if (t.includes('hybrid')) return 'HYBRID';
-  return 'HYBRID';
 }
 
 function parseStockHint(text: string, available: boolean): number {
@@ -60,178 +27,7 @@ function parseStockHint(text: string, available: boolean): number {
   if (t.includes('poslední kus')) return 1;
   if (t.includes('omezené množství') || t.includes('omezené mnozstvi')) return 10;
 
-  // Default for MVP
   return 100;
-}
-
-function cleanCannabinoidName(token: string): string {
-  const upper = token.toUpperCase().replace(/[^A-Z0-9+]/g, '');
-
-  if (upper === 'H') return 'HHC';
-  if (upper === 'HHC' || upper === 'HEXA') return 'HHC';
-  if (upper === 'D9') return 'Δ⁹-THC';
-  if (upper.startsWith('CBD')) return 'CBD';
-  if (upper.startsWith('CBG')) return 'CBG';
-  if (upper.startsWith('CBC')) return 'CBC';
-  if (upper.startsWith('CBN')) return 'CBN';
-  if (upper === 'THCV' || upper === 'THCVA') return 'THCv';
-  if (upper === 'THA' || upper === 'TH-A') return 'THCa';
-  if (upper === 'THCA') return 'THCa';
-  if (upper === 'H4CBD') return 'H4CBD';
-  if (upper === 'HP') return 'HP';
-  if (upper.includes('HHCP')) return 'HHCP';
-  if (upper === 'PPB' || upper === 'PEB' || upper === 'PPBPEB') return 'PPB';
-  if (upper === 'TERPENY' || upper === 'TERPENES') return 'Terpenes';
-
-  if (upper.length <= 10) return upper;
-  return upper.slice(0, 10);
-}
-
-function classifyCannabinoid(name: string): ParsedCannabinoid['type'] {
-  if (name === 'HHC' || name === 'Δ⁹-THC') return 'base';
-  if (name === 'Terpenes') return 'terpenes';
-  if (name === 'CBD' || name === 'CBG' || name === 'CBC' || name === 'CBN' || name === 'H4CBD') return 'minor';
-  return 'other';
-}
-
-function parseCannabinoids(text: string, categoryName: string): Array<{ name: string; percentage: string }> {
-  const results: ParsedCannabinoid[] = [];
-  const regex = /(\d+(?:[.,]\d+)?)\s*%\s*([A-Za-z0-9+]+(?:\s*[A-Za-z0-9+]+)?)/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    const percentage = match[1].replace(',', '.');
-    const rawToken = match[2];
-    const name = cleanCannabinoidName(rawToken);
-    if (!name) continue;
-
-    results.push({
-      name,
-      percentage,
-      type: classifyCannabinoid(name),
-    });
-  }
-
-  const seen = new Set<string>();
-  const deduped = results.filter((r) => {
-    if (seen.has(r.name)) return false;
-    seen.add(r.name);
-    return true;
-  });
-
-  if (categoryName === 'Limited HHC blends') {
-    const hasHhc = deduped.some((r) => r.name === 'HHC');
-    const hasBase = deduped.some((r) => r.type === 'base');
-    if (!hasHhc && hasBase === false) {
-      const totalOther = deduped.reduce((sum, item) => sum + Number(item.percentage), 0);
-      const inferred = Math.max(0, 100 - totalOther);
-      if (inferred >= 1) {
-        deduped.unshift({ name: 'HHC', percentage: inferred.toFixed(0), type: 'base' });
-      }
-    }
-  }
-
-  deduped.sort((a, b) => {
-    const order = { base: 0, terpenes: 1, minor: 2, other: 3 } as const;
-    if (order[a.type] !== order[b.type]) return order[a.type] - order[b.type];
-    return a.name.localeCompare(b.name);
-  });
-
-  return deduped.map((c) => ({ name: c.name, percentage: c.percentage }));
-}
-
-function mapCategory(title: string, baseName?: string, infoText?: string): string {
-  const t = title.toLowerCase();
-  const name = (baseName || '').toLowerCase();
-  const info = (infoText || '').toLowerCase();
-  const mapping: Array<[RegExp, string]> = [
-    [/limitovan.+?nab[ií]dka\s*-\s*h blendy/i, 'Limited HHC blends'],
-    [/h blendy/i, 'Limited HHC blends'],
-    [/limitovan.+?nab[ií]dka/i, 'Limited blend'],
-    [/gummy|gummies|gum(?:my|ys)/i, 'Edibles'],
-    [/live resin/i, 'Live Resin HHC blends'],
-    [/botanick[eé] terpeny/i, 'BDT HHC blends'],
-    [/95% h \+ 5% terpeny/i, 'BDT HHC blends'],
-    [/95% hhc \+ 5% terpeny/i, 'BDT HHC blends'],
-    [/novinky s d9/i, 'D9/D9+Other cannabinoids blends'],
-    [/\bd9\b/i, 'D9/D9+Other cannabinoids blends'],
-    [/baterky|equipment|510/i, 'Concentrates'],
-    [/dopl[nň]kov[yý] sortiment|koncentrat|concentrat|hash/i, 'Concentrates'],
-  ];
-
-  for (const [re, mapped] of mapping) {
-    if (re.test(title) || re.test(name) || re.test(info)) return mapped;
-  }
-
-  return title.trim() || 'Uncategorized';
-}
-
-function parseHtml(html: string): ParsedProduct[] {
-  const $ = cheerio.load(html);
-
-  const products: ParsedProduct[] = [];
-
-  // Each product card has .produkt
-  $('.produkt').each((_, el) => {
-    const productEl = $(el);
-    const baseName = (productEl.attr('data-jmeno') || productEl.find('strong').first().text()).trim();
-
-    // Find nearest category title
-    const categoryTitleRaw = productEl.closest('.kategorie').find('h2').first().text().trim();
-    const categoryTitle = categoryTitleRaw || 'Uncategorized';
-
-    const imgSrc = productEl.find('img').first().attr('src') ?? null;
-
-    const fallbackPriceCzk = (() => {
-      const raw = productEl.attr('data-cena');
-      if (!raw) return null;
-      const num = Number(String(raw).replace(/[^0-9]/g, ''));
-      return Number.isFinite(num) && num > 0 ? num : null;
-    })();
-
-    const infoText = productEl.find('.info').text().replace(/\s+/g, ' ').trim();
-    const descriptionText = productEl.find('.info > div').first().text().trim();
-
-    const variantBlocks = productEl.find('.variantBlock');
-    const variants: ParsedVariant[] = [];
-    variantBlocks.each((_, vEl) => {
-      const v = $(vEl);
-      const variantName = v.find('.vName').text().trim();
-      const priceText = v.find('.vPrice').text();
-      const priceNumber = Number(String(priceText).replace(/[^0-9]/g, ''));
-      if (!variantName || !Number.isFinite(priceNumber) || priceNumber <= 0) return;
-      variants.push({ variantName, priceCzk: priceNumber });
-    });
-
-    const available = !productEl.hasClass('nedostupne');
-
-    const strain = normalizeStrain(`${baseName} ${infoText}`);
-    const featured = categoryTitle.toLowerCase().includes('limitovan');
-
-    const cannabinoids = parseCannabinoids(infoText, mapCategory(categoryTitle, baseName, infoText));
-
-    const effectiveVariants =
-      variants.length > 0
-        ? variants
-        : fallbackPriceCzk
-          ? [{ variantName: 'Default', priceCzk: fallbackPriceCzk }]
-          : [];
-
-    products.push({
-      categoryTitle,
-      baseName,
-      image: imgSrc,
-      description: descriptionText,
-      strain,
-      featured,
-      available,
-      variants: effectiveVariants,
-      cannabinoids,
-      fallbackPriceCzk,
-      rawText: infoText,
-    });
-  });
-
-  return products;
 }
 
 async function upsertCategory(prisma: PrismaClient, name: string) {
@@ -319,7 +115,7 @@ async function main() {
             where: { id: existingProducts[0].id },
             data: {
               categoryId: category.id,
-              description: p.description || null,
+              description: null,
               strain: p.strain,
               flavour: null,
               price,
@@ -332,12 +128,7 @@ async function main() {
             data: {
               name,
               categoryId: category.id,
-              description: p.description || null,
-              strain: p.strain,
-              flavour: null,
-              price,
-              stock,
-              image: p.image,
+              description: null,
               featured: p.featured,
             },
           });

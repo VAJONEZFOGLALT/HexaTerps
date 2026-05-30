@@ -237,7 +237,6 @@ function App() {
                     </div>
                   </div>
 
-                  {p.description ? <div className="desc">{p.description}</div> : null}
                   {p.flavour ? <div className="muted">{t('flavourPrefix')} {p.flavour}</div> : null}
                   {cannabinoidsText ? <div className="muted">{t('compositionPrefix')} {cannabinoidsText}</div> : null}
 
