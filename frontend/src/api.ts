@@ -1,4 +1,4 @@
-import type { Category, CreateOrderPayload, Order, Product } from './types';
+import type { Category, CreateOrderPayload, Device, Order, Product } from './types';
 
 export const API_BASE = (window as any).__API_BASE_URL__ ?? '';
 
@@ -42,6 +42,10 @@ export const api = {
 
   getCannabinoids(): Promise<Array<{ id: number; name: string }>> {
     return http('/api/cannabinoids');
+  },
+
+  getDevices(): Promise<Device[]> {
+    return http('/api/devices');
   },
 
   createOrder(payload: CreateOrderPayload): Promise<Order> {

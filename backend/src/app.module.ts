@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AdminModule } from './admin/admin.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CannabinoidsModule } from './cannabinoids/cannabinoids.module';
+import { DevicesModule } from './devices/devices.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -67,6 +68,7 @@ import Joi from 'joi';
     AdminModule,
     CategoriesModule,
     CannabinoidsModule,
+    DevicesModule,
     ProductsModule,
     OrdersModule,
   ],

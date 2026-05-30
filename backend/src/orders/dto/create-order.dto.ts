@@ -18,6 +18,11 @@ export class CreateOrderItemDto {
   productId!: number;
 
   @IsInt()
+  @IsOptional()
+  @Min(1)
+  deviceId?: number;
+
+  @IsInt()
   @Min(1)
   quantity!: number;
 }

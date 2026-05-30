@@ -12,6 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import { Strain } from '@prisma/client';
 import { ProductCannabinoidDto } from './product-cannabinoid.dto';
+import { ProductDeviceDto } from './product-device.dto';
 
 export class CreateProductDto {
   @IsString()
@@ -63,4 +64,9 @@ export class CreateProductDto {
   @Type(() => ProductCannabinoidDto)
   @IsOptional()
   cannabinoids?: ProductCannabinoidDto[];
+
+  @ValidateNested({ each: true })
+  @Type(() => ProductDeviceDto)
+  @IsOptional()
+  devices?: ProductDeviceDto[];
 }

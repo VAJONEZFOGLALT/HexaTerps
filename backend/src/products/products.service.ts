@@ -2,11 +2,24 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CannabinoidUnit, Prisma, Product } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ProductDeviceDto } from './dto/product-device.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly productInclude = {
+    category: true,
+    cannabinoids: {
+      include: { cannabinoid: true },
+      orderBy: { cannabinoid: { name: 'asc' } },
+    },
+    devices: {
+      include: { device: true },
+      orderBy: { device: { name: 'asc' } },
+    },
+  } as const;
 
   private async resolveCategoryId(categoryId?: number, categoryCustom?: string): Promise<number> {
     if (categoryId) {
@@ -33,15 +46,47 @@ export class ProductsService {
     return categoryName;
   }
 
+  private async resolveDeviceLinks(devices?: ProductDeviceDto[]) {
+    if (!devices) return undefined;
+
+    const resolved = [] as Array<{ deviceId: number; price: Prisma.Decimal }>;
+    const seen = new Set<number>();
+
+    for (const deviceDto of devices) {
+      let deviceId = deviceDto.deviceId;
+      if (!deviceId) {
+        const name = deviceDto.deviceCustom?.trim();
+        if (!name) {
+          throw new BadRequestException('Each device row needs either a deviceId or a custom name');
+        }
+
+        const existing = await this.prisma.device.findUnique({ where: { name } });
+        const device = existing ?? (await this.prisma.device.create({ data: { name } }));
+        deviceId = device.id;
+      } else {
+        const existing = await this.prisma.device.findUnique({ where: { id: deviceId } });
+        if (!existing) {
+          throw new BadRequestException(`Device not found: ${deviceId}`);
+        }
+      }
+
+      if (seen.has(deviceId)) {
+        throw new BadRequestException('Duplicate deviceId in devices');
+      }
+      seen.add(deviceId);
+
+      resolved.push({
+        deviceId,
+        price: new Prisma.Decimal(deviceDto.price),
+      });
+    }
+
+    return resolved;
+  }
+
   findAll() {
     return this.prisma.product.findMany({
-      include: {
-        category: true,
-        cannabinoids: {
-          include: { cannabinoid: true },
-          orderBy: { cannabinoid: { name: 'asc' } },
-        },
-      },
+      include: this.productInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -49,13 +94,7 @@ export class ProductsService {
   findFeatured() {
     return this.prisma.product.findMany({
       where: { featured: true },
-      include: {
-        category: true,
-        cannabinoids: {
-          include: { cannabinoid: true },
-          orderBy: { cannabinoid: { name: 'asc' } },
-        },
-      },
+      include: this.productInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -63,13 +102,7 @@ export class ProductsService {
   async findOne(id: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: {
-        category: true,
-        cannabinoids: {
-          include: { cannabinoid: true },
-          orderBy: { cannabinoid: { name: 'asc' } },
-        },
-      },
+      include: this.productInclude,
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
@@ -81,6 +114,7 @@ export class ProductsService {
     if (!category) throw new BadRequestException('Category not found');
 
     const price = new Prisma.Decimal(dto.price);
+    const devices = await this.resolveDeviceLinks(dto.devices);
 
     const cannabinoids = dto.cannabinoids ?? [];
     const uniqueIds = new Set(cannabinoids.map((c) => c.cannabinoidId));
@@ -102,15 +136,34 @@ export class ProductsService {
       },
     });
 
-    if (cannabinoids.length > 0) {
-      await this.prisma.productCannabinoid.createMany({
-        data: cannabinoids.map((c) => ({
-          productId: product.id,
-          cannabinoidId: c.cannabinoidId,
-          percentage: c.percentage,
-          unit: c.unit ?? CannabinoidUnit.PERCENT,
-        })),
-      });
+    const createRelations = [
+      ...(cannabinoids.length > 0
+        ? [
+            this.prisma.productCannabinoid.createMany({
+              data: cannabinoids.map((c) => ({
+                productId: product.id,
+                cannabinoidId: c.cannabinoidId,
+                percentage: c.percentage,
+                unit: c.unit ?? CannabinoidUnit.PERCENT,
+              })),
+            }),
+          ]
+        : []),
+      ...(devices && devices.length > 0
+        ? [
+            this.prisma.productDevice.createMany({
+              data: devices.map((device) => ({
+                productId: product.id,
+                deviceId: device.deviceId,
+                price: device.price,
+              })),
+            }),
+          ]
+        : []),
+    ];
+
+    if (createRelations.length > 0) {
+      await this.prisma.$transaction(createRelations);
     }
 
     return this.findOne(product.id);
@@ -126,22 +179,7 @@ export class ProductsService {
       ? await this.prisma.category.findUnique({ where: { id: categoryId } })
       : undefined;
 
-    const updated = await this.prisma.product.update({
-      where: { id },
-      data: {
-        ...(dto.name !== undefined
-          ? { name: dto.name.trim() || (category?.name ?? dto.name) }
-          : {}),
-        ...(categoryId !== undefined ? { categoryId } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.strain !== undefined ? { strain: dto.strain } : {}),
-        ...(dto.flavour !== undefined ? { flavour: dto.flavour } : {}),
-        ...(dto.price !== undefined ? { price: new Prisma.Decimal(dto.price) } : {}),
-        ...(dto.stock !== undefined ? { stock: dto.stock } : {}),
-        ...(dto.image !== undefined ? { image: dto.image } : {}),
-        ...(dto.featured !== undefined ? { featured: dto.featured } : {}),
-      },
-    });
+    const devices = dto.devices ? await this.resolveDeviceLinks(dto.devices) : undefined;
 
     if (dto.cannabinoids) {
       const cannabinoids = dto.cannabinoids;
@@ -149,25 +187,58 @@ export class ProductsService {
       if (uniqueIds.size !== cannabinoids.length) {
         throw new BadRequestException('Duplicate cannabinoidId in cannabinoids');
       }
-
-      await this.prisma.$transaction([
-        this.prisma.productCannabinoid.deleteMany({ where: { productId: updated.id } }),
-        ...(cannabinoids.length > 0
-          ? [
-              this.prisma.productCannabinoid.createMany({
-                data: cannabinoids.map((c) => ({
-                  productId: updated.id,
-                  cannabinoidId: c.cannabinoidId,
-                  percentage: c.percentage,
-                  unit: c.unit ?? CannabinoidUnit.PERCENT,
-                })),
-              }),
-            ]
-          : []),
-      ]);
     }
 
-    return this.findOne(updated.id);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.update({
+        where: { id },
+        data: {
+          ...(dto.name !== undefined
+            ? { name: dto.name.trim() || (category?.name ?? dto.name) }
+            : {}),
+          ...(categoryId !== undefined ? { categoryId } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.strain !== undefined ? { strain: dto.strain } : {}),
+          ...(dto.flavour !== undefined ? { flavour: dto.flavour } : {}),
+          ...(dto.price !== undefined ? { price: new Prisma.Decimal(dto.price) } : {}),
+          ...(dto.stock !== undefined ? { stock: dto.stock } : {}),
+          ...(dto.image !== undefined ? { image: dto.image } : {}),
+          ...(dto.featured !== undefined ? { featured: dto.featured } : {}),
+        },
+      });
+
+      if (dto.cannabinoids) {
+        await tx.productCannabinoid.deleteMany({ where: { productId: product.id } });
+        if (dto.cannabinoids.length > 0) {
+          await tx.productCannabinoid.createMany({
+            data: dto.cannabinoids.map((c) => ({
+              productId: product.id,
+              cannabinoidId: c.cannabinoidId,
+              percentage: c.percentage,
+              unit: c.unit ?? CannabinoidUnit.PERCENT,
+            })),
+          });
+        }
+      }
+
+      if (dto.devices) {
+        await tx.productDevice.deleteMany({ where: { productId: product.id } });
+        if (devices && devices.length > 0) {
+          await tx.productDevice.createMany({
+            data: devices.map((device) => ({
+              productId: product.id,
+              deviceId: device.deviceId,
+              price: device.price,
+            })),
+          });
+        }
+      }
+
+      return tx.product.findUnique({ where: { id: product.id }, include: this.productInclude });
+    });
+
+    if (!updated) throw new NotFoundException('Product not found');
+    return updated;
   }
 
   async remove(id: number) {

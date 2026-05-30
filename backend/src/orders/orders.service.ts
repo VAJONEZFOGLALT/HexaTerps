@@ -28,37 +28,70 @@ export class OrdersService {
       throw new BadRequestException('Order must include at least 1 item');
     }
 
-    const uniqueProductIds = new Set(dto.items.map((i) => i.productId));
-    if (uniqueProductIds.size !== dto.items.length) {
-      throw new BadRequestException('Duplicate productId in items');
+    const uniqueItemKeys = new Set(
+      dto.items.map((item) => `${item.productId}:${item.deviceId ?? 'base'}`),
+    );
+    if (uniqueItemKeys.size !== dto.items.length) {
+      throw new BadRequestException('Duplicate product/device combination in items');
     }
 
     const products = await this.prisma.product.findMany({
-      where: { id: { in: [...uniqueProductIds] } },
+      where: { id: { in: [...new Set(dto.items.map((i) => i.productId))] } },
+      include: {
+        devices: {
+          include: { device: true },
+        },
+      },
     });
 
-    if (products.length !== uniqueProductIds.size) {
+    const productIds = new Set(dto.items.map((i) => i.productId));
+    if (products.length !== productIds.size) {
       throw new BadRequestException('One or more products not found');
     }
 
     const productById = new Map(products.map((p) => [p.id, p] as const));
+    const quantityByProductId = new Map<number, number>();
+
+    for (const item of dto.items) {
+      quantityByProductId.set(item.productId, (quantityByProductId.get(item.productId) ?? 0) + item.quantity);
+    }
+
+    for (const [productId, quantity] of quantityByProductId) {
+      const product = productById.get(productId);
+      if (!product) {
+        throw new BadRequestException('One or more products not found');
+      }
+      if (quantity > product.stock) {
+        throw new BadRequestException(`Insufficient stock for productId=${product.id}`);
+      }
+    }
 
     const orderItems = dto.items.map((i) => {
       const product = productById.get(i.productId);
       if (!product) {
         throw new BadRequestException('One or more products not found');
       }
-      if (product.stock < i.quantity) {
-        throw new BadRequestException(`Insufficient stock for productId=${product.id}`);
+
+      const selectedDevice = i.deviceId
+        ? product.devices.find((entry) => entry.deviceId === i.deviceId)
+        : undefined;
+
+      if (i.deviceId !== undefined && !selectedDevice) {
+        throw new BadRequestException(`Device not found for productId=${product.id}`);
       }
 
-      const unitPrice = product.price;
+      if (product.devices.length > 0 && !selectedDevice) {
+        throw new BadRequestException(`Device selection is required for productId=${product.id}`);
+      }
+
+      const unitPrice = selectedDevice?.price ?? product.price;
       const quantity = i.quantity;
       const lineTotal = unitPrice.mul(quantity);
 
       return {
         productId: product.id,
         productName: product.name,
+        deviceName: selectedDevice?.device.name ?? null,
         unitPrice,
         quantity,
         lineTotal,

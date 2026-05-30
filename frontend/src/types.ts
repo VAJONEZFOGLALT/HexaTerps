@@ -8,6 +8,11 @@ export type Cannabinoid = {
   name: string;
 };
 
+export type Device = {
+  id: number;
+  name: string;
+};
+
 export type CannabinoidUnit = 'PERCENT' | 'MG';
 
 export type ProductCannabinoid = {
@@ -16,6 +21,14 @@ export type ProductCannabinoid = {
   percentage: string;
   unit: CannabinoidUnit;
   cannabinoid: Cannabinoid;
+};
+
+export type ProductDevice = {
+  id: number;
+  productId: number;
+  deviceId: number;
+  price: string;
+  device: Device;
 };
 
 export type Strain = 'SATIVA' | 'INDICA' | 'HYBRID';
@@ -33,12 +46,14 @@ export type Product = {
   image: string | null;
   featured: boolean;
   cannabinoids: ProductCannabinoid[];
+  devices: ProductDevice[];
 };
 
 export type DeliveryMethod = 'PICKUP' | 'COURIER';
 
 export type CreateOrderItem = {
   productId: number;
+  deviceId?: number;
   quantity: number;
 };
 
@@ -63,6 +78,7 @@ export type Order = {
     id: number;
     productId: number;
     productName: string;
+    deviceName: string | null;
     unitPrice: string;
     quantity: number;
     lineTotal: string;

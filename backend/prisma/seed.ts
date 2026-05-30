@@ -32,6 +32,8 @@ const BASE_CANNABINOIDS = [
   'Terpenes',
 ];
 
+const BASE_DEVICES = ['Cartridge', 'Small tank', 'Big tank', 'Disposable', 'Battery'];
+
 async function main() {
   // Create canonical categories if they don't exist
   for (const name of CANONICAL_CATEGORIES) {
@@ -51,7 +53,17 @@ async function main() {
     }
   }
 
-  console.log(`Seed complete: ${CANONICAL_CATEGORIES.length} categories and ${BASE_CANNABINOIDS.length} cannabinoids ready.`);
+  for (const name of BASE_DEVICES) {
+    const existing = await prisma.device.findUnique({ where: { name } });
+    if (!existing) {
+      await prisma.device.create({ data: { name } });
+      console.log(`Created device: ${name}`);
+    }
+  }
+
+  console.log(
+    `Seed complete: ${CANONICAL_CATEGORIES.length} categories, ${BASE_CANNABINOIDS.length} cannabinoids, and ${BASE_DEVICES.length} devices ready.`,
+  );
 }
 
 main()

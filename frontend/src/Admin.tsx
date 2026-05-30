@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import './Admin.css';
-import type { Category, Cannabinoid, CannabinoidUnit, Product, ProductCannabinoid, Strain } from './types';
+import type {
+  Category,
+  Cannabinoid,
+  CannabinoidUnit,
+  Device,
+  Product,
+  ProductCannabinoid,
+  ProductDevice,
+  Strain,
+} from './types';
 import { api, buildApiUrl } from './api';
 
 type CannabinoidEntry = {
@@ -10,6 +19,8 @@ type CannabinoidEntry = {
 };
 
 type CategoryMode = 'dropdown' | 'custom';
+
+type DeviceMode = 'dropdown' | 'custom';
 
 type ProductForm = {
   name: string;
@@ -24,7 +35,24 @@ type ProductForm = {
   image: string;
   featured: boolean;
   cannabinoids: CannabinoidEntry[];
+  devices: DeviceEntry[];
 };
+
+type DeviceEntry = {
+  deviceId: number | string;
+  deviceCustom: string;
+  deviceMode: DeviceMode;
+  price: string;
+};
+
+function createDeviceEntry(
+  deviceId: number | string = '',
+  deviceCustom = '',
+  deviceMode: DeviceMode = 'dropdown',
+  price = '',
+): DeviceEntry {
+  return { deviceId, deviceCustom, deviceMode, price };
+}
 
 const defaultForm: ProductForm = {
   name: '',
@@ -39,6 +67,7 @@ const defaultForm: ProductForm = {
   image: '',
   featured: false,
   cannabinoids: [],
+  devices: [createDeviceEntry()],
 };
 
 function formatCannabinoidEntry(entry: ProductCannabinoid): string {
@@ -46,11 +75,16 @@ function formatCannabinoidEntry(entry: ProductCannabinoid): string {
   return `${entry.cannabinoid.name} ${entry.percentage}${suffix}`;
 }
 
+function formatDeviceEntry(entry: ProductDevice): string {
+  return `${entry.device.name} ${entry.price} CZK`;
+}
+
 function AdminPanel() {
   const [adminToken, setAdminToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cannabinoids, setCannabinoids] = useState<Cannabinoid[]>([]);
+  const [deviceOptions, setDeviceOptions] = useState<Device[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,13 +100,15 @@ function AdminPanel() {
   }, []);
 
   async function loadData() {
-    const [cats, cans, prods] = await Promise.all([
+    const [cats, cans, devs, prods] = await Promise.all([
       api.getCategories(),
       api.getCannabinoids(),
+      api.getDevices(),
       api.getProducts(),
     ]);
     setCategories(cats);
     setCannabinoids(cans);
+    setDeviceOptions(devs);
     setProducts(prods);
   }
 
@@ -125,6 +161,53 @@ function AdminPanel() {
     unit: CannabinoidUnit = 'PERCENT',
   ): CannabinoidEntry {
     return { cannabinoidId, percentage, unit };
+  }
+
+  function handleAddDevice() {
+    setForm((prev) => ({
+      ...prev,
+      devices: [...prev.devices, createDeviceEntry()],
+    }));
+  }
+
+  function handleRemoveDevice(idx: number) {
+    setForm((prev) => ({
+      ...prev,
+      devices: prev.devices.filter((_, i) => i !== idx),
+    }));
+  }
+
+  function handleDeviceChange(
+    idx: number,
+    field: 'deviceId' | 'deviceCustom' | 'deviceMode' | 'price',
+    value: string,
+  ) {
+    setForm((prev) => {
+      const next = [...prev.devices];
+      const current = next[idx] ?? createDeviceEntry();
+      const updated: DeviceEntry = { ...current, [field]: value } as DeviceEntry;
+
+      if (field === 'deviceMode') {
+        if (value === 'dropdown') {
+          updated.deviceCustom = '';
+        } else {
+          updated.deviceId = '';
+        }
+      }
+
+      if (field === 'deviceId' && value) {
+        updated.deviceMode = 'dropdown';
+        updated.deviceCustom = '';
+      }
+
+      if (field === 'deviceCustom' && value.trim()) {
+        updated.deviceMode = 'custom';
+        updated.deviceId = '';
+      }
+
+      next[idx] = updated;
+      return { ...prev, devices: next };
+    });
   }
 
   function handleAddCannabinoid() {
@@ -189,6 +272,28 @@ function AdminPanel() {
         return;
       }
 
+      const normalizedDevices = form.devices
+        .map((device) => ({
+          deviceId:
+            device.deviceMode === 'dropdown' && device.deviceId
+              ? Number(device.deviceId)
+              : undefined,
+          deviceCustom: device.deviceMode === 'custom' ? device.deviceCustom.trim() : '',
+          price: device.price.trim(),
+        }))
+        .filter((device) => device.deviceId || device.deviceCustom || device.price);
+
+      for (const device of normalizedDevices) {
+        if (!device.price) {
+          setError('Please fill in each device price');
+          return;
+        }
+        if (!device.deviceId && !device.deviceCustom) {
+          setError('Please pick a device or enter a custom device name');
+          return;
+        }
+      }
+
       const payload = {
         name: form.name.trim() || undefined,
         categoryId,
@@ -211,6 +316,7 @@ function AdminPanel() {
             unit: c.unit,
           }))
           .filter((c) => c.cannabinoidId),
+        devices: normalizedDevices,
       };
 
       const method = editingProductId ? 'PATCH' : 'POST';
@@ -273,6 +379,12 @@ function AdminPanel() {
       image: product.image ?? '',
       featured: product.featured,
       cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
+      devices:
+        product.devices.length > 0
+          ? product.devices.map((device) =>
+              createDeviceEntry(device.deviceId, '', 'dropdown', device.price),
+            )
+          : [createDeviceEntry()],
     });
   }
 
@@ -293,6 +405,12 @@ function AdminPanel() {
       image: product.image ?? '',
       featured: product.featured,
       cannabinoids: product.cannabinoids.map((c) => createCannabinoidEntry(c.cannabinoidId, c.percentage, c.unit)),
+      devices:
+        product.devices.length > 0
+          ? product.devices.map((device) =>
+              createDeviceEntry(device.deviceId, '', 'dropdown', device.price),
+            )
+          : [createDeviceEntry()],
     });
   }
 
@@ -366,6 +484,7 @@ function AdminPanel() {
             <div className="product-grid">
               {products.map((product) => {
                 const cannabinoidText = product.cannabinoids.map(formatCannabinoidEntry).join(' • ');
+                const deviceText = product.devices.map(formatDeviceEntry).join(' • ');
 
                 return (
                   <article key={product.id} className="product-card">
@@ -386,6 +505,9 @@ function AdminPanel() {
                       {product.flavour ? (
                         <div className="muted"><strong>Flavour:</strong> {product.flavour}</div>
                       ) : null}
+                      <div className="muted">
+                        <strong>Devices:</strong> {deviceText || 'none'}
+                      </div>
                       <div className="product-card-defaults">
                         <span>Strain: {product.strain}</span>
                         <span>Price: {product.price} CZK</span>
@@ -503,6 +625,73 @@ function AdminPanel() {
                   value={form.stock}
                   onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))}
                 />
+              </div>
+            </div>
+
+            <div className="cannabinoids-section">
+              <div className="cannabinoids-header">
+                <h3>Devices</h3>
+                <button type="button" onClick={handleAddDevice} className="btn-small">
+                  + Add
+                </button>
+              </div>
+
+              <div className="cannabinoids-list">
+                {form.devices.length === 0 ? (
+                  <p className="muted">No devices added</p>
+                ) : (
+                  form.devices.map((device, idx) => (
+                    <div key={idx} className="cannabinoid-entry">
+                      <select
+                        value={device.deviceMode}
+                        onChange={(e) => handleDeviceChange(idx, 'deviceMode', e.target.value)}
+                        className="unit-input"
+                      >
+                        <option value="dropdown">Dropdown</option>
+                        <option value="custom">Custom</option>
+                      </select>
+
+                      {device.deviceMode === 'dropdown' ? (
+                        <select
+                          value={device.deviceId}
+                          onChange={(e) => handleDeviceChange(idx, 'deviceId', e.target.value)}
+                        >
+                          <option value="">-- Select Device --</option>
+                          {deviceOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={device.deviceCustom}
+                          onChange={(e) => handleDeviceChange(idx, 'deviceCustom', e.target.value)}
+                          placeholder="Enter device name, e.g. Cartridge"
+                        />
+                      )}
+
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={device.price}
+                        onChange={(e) => handleDeviceChange(idx, 'price', e.target.value)}
+                        placeholder="Price"
+                        className="percentage-input"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDevice(idx)}
+                        className="btn-remove"
+                        title="Remove device"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
